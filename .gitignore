@@ -1,0 +1,43 @@
+### Rust ###
+# Compiled files
+/target/
+
+# If you are building a library, you may want to keep Cargo.lock under version control.
+# For applications, it's common to include Cargo.lock in the repo. Uncomment if you want
+# to ignore it.
+# Cargo.lock
+
+### Binaries ###
+# If you build release binaries or packaging artifacts, ignore them
+/*.exe
+/*.dll
+/*.dylib
+/*.so
+/*.a
+autoversion*
+
+### Editor and OS files ###
+# macOS
+.DS_Store
+# Vim swap
+*.swp
+# Emacs
+*~
+# VSCode
+.vscode/
+*.code-workspace
+# JetBrains
+.idea/
+*.iml
+
+### Logs and temporary files ###
+*.log
+tmp/
+test-*/
+
+### Packaging / Dist ###
+/dist/
+
+### Build / CI artifacts ###
+# GitHub Action artifacts or wrappers should not be in this repository for a source-only project
+# (they live in separate wrapper repos)
