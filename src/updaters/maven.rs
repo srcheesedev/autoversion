@@ -3,6 +3,7 @@ use regex::Regex;
 use std::path::{Path, PathBuf};
 
 use super::traits::{VersionUpdater, VersionChange};
+use crate::constants::manifests::MAVEN_POM;
 use crate::utils::files::{backup_file, read_file_safe, write_file_safe};
 
 /// Maven POM version updater
@@ -156,7 +157,7 @@ impl Default for MavenUpdater {
 
 impl VersionUpdater for MavenUpdater {
     fn get_current_version(&self, project_path: &Path) -> Result<String> {
-        let pom = project_path.join("pom.xml");
+        let pom = project_path.join(MAVEN_POM);
         let content = read_file_safe(&pom)?;
         if let Some(v) = self.extract_version(&content) {
             return Ok(v);
@@ -165,7 +166,7 @@ impl VersionUpdater for MavenUpdater {
     }
 
     fn update_version(&self, project_path: &Path, new_version: &str) -> Result<Vec<String>> {
-        let pom = project_path.join("pom.xml");
+        let pom = project_path.join(MAVEN_POM);
         backup_file(&pom)?;
         let old = read_file_safe(&pom)?;
         let updated = self.replace_version(&old, new_version)?;
@@ -174,7 +175,7 @@ impl VersionUpdater for MavenUpdater {
     }
 
     fn validate_project(&self, project_path: &Path) -> Result<()> {
-        let pom = project_path.join("pom.xml");
+        let pom = project_path.join(MAVEN_POM);
         if pom.exists() {
             Ok(())
         } else {
@@ -187,7 +188,7 @@ impl VersionUpdater for MavenUpdater {
     }
 
     fn get_primary_file(&self, project_path: &Path) -> Result<PathBuf> {
-        let pom = project_path.join("pom.xml");
+        let pom = project_path.join(MAVEN_POM);
         if pom.exists() {
             Ok(pom)
         } else {
@@ -196,11 +197,11 @@ impl VersionUpdater for MavenUpdater {
     }
 
     fn can_handle(&self, project_path: &Path) -> bool {
-        project_path.join("pom.xml").exists()
+        project_path.join(MAVEN_POM).exists()
     }
 
     fn preview_changes(&self, project_path: &Path, new_version: &str) -> Result<Vec<VersionChange>> {
-        let pom = project_path.join("pom.xml");
+        let pom = project_path.join(MAVEN_POM);
         let mut changes = Vec::new();
         if pom.exists() {
             let old_content = read_file_safe(&pom)?;
@@ -234,7 +235,7 @@ mod tests {
             "<project>\n  <modelVersion>4.0.0</modelVersion>\n  <groupId>com.example</groupId>\n  <artifactId>test</artifactId>\n  <version>{}</version>\n</project>",
             version
         );
-        fs::write(dir.join("pom.xml"), content)?;
+        fs::write(dir.join(MAVEN_POM), content)?;
         Ok(())
     }
 
@@ -257,7 +258,7 @@ mod tests {
 
         let updated = MavenUpdater::new().update_version(path, "0.2.0")?;
         assert_eq!(updated.len(), 1);
-        let content = fs::read_to_string(path.join("pom.xml"))?;
+        let content = fs::read_to_string(path.join(MAVEN_POM))?;
         assert!(content.contains("<version>0.2.0</version>"));
         Ok(())
     }
