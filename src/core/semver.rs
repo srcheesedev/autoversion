@@ -221,4 +221,19 @@ mod tests {
         
         assert_eq!(new_version, "1.2.4");
     }
+
+    #[test]
+    fn test_maven_snapshot_clearing() {
+        let bumper = VersionBumper::new();
+        
+        // Maven SNAPSHOT versions should be parsed and cleared
+        let (new_version, _) = bumper.manual_bump("1.2.3-SNAPSHOT", "patch").unwrap();
+        assert_eq!(new_version, "1.2.4");
+        
+        let (new_version, _) = bumper.manual_bump("1.2.3-SNAPSHOT", "minor").unwrap();
+        assert_eq!(new_version, "1.3.0");
+        
+        let (new_version, _) = bumper.manual_bump("1.2.3-SNAPSHOT", "major").unwrap();
+        assert_eq!(new_version, "2.0.0");
+    }
 }

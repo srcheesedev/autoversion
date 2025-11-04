@@ -291,4 +291,25 @@ mod tests {
     fn test_technology_name() {
         assert_eq!(MavenUpdater::new().technology_name(), "maven");
     }
+
+    #[test]
+    fn test_snapshot_version_handling() -> anyhow::Result<()> {
+        let tmp = TempDir::new()?;
+        let path = tmp.path();
+        
+        // Test that SNAPSHOT versions can be read
+        create_pom(path, "1.2.3-SNAPSHOT")?;
+        let updater = MavenUpdater::new();
+        let current = updater.get_current_version(path)?;
+        assert_eq!(current, "1.2.3-SNAPSHOT");
+        
+        // Test that SNAPSHOT versions can be updated to release versions
+        let updated = updater.update_version(path, "1.2.3")?;
+        assert_eq!(updated.len(), 1);
+        let content = fs::read_to_string(path.join(MAVEN_POM))?;
+        assert!(content.contains("<version>1.2.3</version>"));
+        assert!(!content.contains("SNAPSHOT"));
+        
+        Ok(())
+    }
 }
