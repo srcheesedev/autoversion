@@ -8,6 +8,7 @@ pub mod cli;
 pub mod constants;
 pub mod core;
 pub mod git;
+pub mod rollback;
 pub mod updaters;
 pub mod utils;
 
