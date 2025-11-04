@@ -14,6 +14,7 @@ use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
 use crate::constants::BACKUP_FILE_EXTENSION;
+use crate::git::operations::{delete_tag_in, revert_last_commit_in, tag_exists_in};
 
 /// Options for rollback operation
 #[derive(Debug, Clone)]
@@ -116,13 +117,26 @@ pub fn rollback(project_path: &Path, options: &RollbackOptions) -> Result<Vec<Pa
         }
     }
     
-    // TODO: Handle git operations (tags, commits)
+    // Handle git operations (tags, commits)
     if options.delete_tags {
-        // Will implement in git module
+        if let Some(version) = &options.version {
+            let tag_name = format!("v{}", version);
+            
+            // Check if tag exists before trying to delete
+            if tag_exists_in(project_path, &tag_name)? {
+                delete_tag_in(project_path, &tag_name)
+                    .context("Failed to delete git tag")?;
+            } else {
+                println!("ℹ️  Tag {} does not exist, skipping deletion", tag_name);
+            }
+        } else {
+            println!("⚠️  No version specified, skipping tag deletion");
+        }
     }
     
     if options.revert_commits {
-        // Will implement in git module
+        revert_last_commit_in(project_path)
+            .context("Failed to revert last commit")?;
     }
     
     Ok(restored_files)
@@ -323,5 +337,102 @@ mod tests {
 
         let restored = rollback(temp.path(), &options).unwrap();
         assert_eq!(restored.len(), 1);
+    }
+
+    #[test]
+    fn test_rollback_with_git_tag_deletion() {
+        use crate::git::operations::{init_test_repo, create_tag_in};
+        use git2::Signature;
+        
+        let temp = TempDir::new().unwrap();
+        
+        // Initialize git repo and create initial commit
+        let repo = init_test_repo(temp.path()).unwrap();
+        let sig = Signature::now("Test", "test@example.com").unwrap();
+        
+        // Create initial file and commit
+        create_test_file(&temp.path().join("VERSION"), "1.0.0");
+        let mut index = repo.index().unwrap();
+        index.add_path(std::path::Path::new("VERSION")).unwrap();
+        index.write().unwrap();
+        let tree_id = index.write_tree().unwrap();
+        let tree = repo.find_tree(tree_id).unwrap();
+        repo.commit(Some("HEAD"), &sig, &sig, "Initial commit", &tree, &[]).unwrap();
+        
+        // Update file and create backup
+        create_test_file(&temp.path().join("VERSION"), "2.0.0");
+        create_test_file(&temp.path().join("VERSION.autoversion.backup"), "1.0.0");
+        
+        // Create a tag
+        create_tag_in(temp.path(), "v2.0.0", "2.0.0").unwrap();
+        
+        // Rollback with tag deletion
+        let options = RollbackOptions {
+            restore_files: true,
+            delete_tags: true,
+            revert_commits: false,
+            version: Some("2.0.0".to_string()),
+        };
+        
+        let restored = rollback(temp.path(), &options).unwrap();
+        assert_eq!(restored.len(), 1);
+        
+        // Verify tag was deleted
+        assert!(!tag_exists_in(temp.path(), "v2.0.0").unwrap());
+    }
+
+    #[test]
+    fn test_rollback_with_commit_reversion() {
+        use crate::git::operations::{init_test_repo, commit_version_changes_in};
+        use git2::Signature;
+        
+        let temp = TempDir::new().unwrap();
+        
+        // Initialize git repo and create initial commit
+        let repo = init_test_repo(temp.path()).unwrap();
+        let sig = Signature::now("Test", "test@example.com").unwrap();
+        let tree_id = repo.index().unwrap().write_tree().unwrap();
+        let tree = repo.find_tree(tree_id).unwrap();
+        repo.commit(Some("HEAD"), &sig, &sig, "Initial commit", &tree, &[]).unwrap();
+        
+        // Create a file for version bump
+        create_test_file(&temp.path().join("VERSION"), "1.0.0");
+        create_test_file(&temp.path().join("VERSION.autoversion.backup"), "1.0.0");
+        
+        // Make a version bump commit
+        let version_file = temp.path().join("VERSION").to_string_lossy().to_string();
+        commit_version_changes_in(temp.path(), &[version_file], "2.0.0", None).unwrap();
+        
+        // Now rollback with commit reversion
+        let options = RollbackOptions {
+            restore_files: false,
+            delete_tags: false,
+            revert_commits: true,
+            version: None,
+        };
+        
+        let result = rollback(temp.path(), &options);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_rollback_without_version_skips_tag_deletion() {
+        let temp = TempDir::new().unwrap();
+        
+        // Create backup
+        create_test_file(&temp.path().join("VERSION"), "2.0.0");
+        create_test_file(&temp.path().join("VERSION.autoversion.backup"), "1.0.0");
+        
+        // Rollback with delete_tags but no version specified
+        let options = RollbackOptions {
+            restore_files: true,
+            delete_tags: true,  // Requested but will be skipped
+            revert_commits: false,
+            version: None,  // No version specified
+        };
+        
+        let restored = rollback(temp.path(), &options).unwrap();
+        assert_eq!(restored.len(), 1);
+        // Test passes if no panic occurs (tag deletion skipped gracefully)
     }
 }

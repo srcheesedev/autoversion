@@ -164,6 +164,57 @@ pub fn get_latest_tag_in(project_path: &std::path::Path) -> Result<Option<String
     Ok(tags.last().cloned())
 }
 
+/// Delete a git tag
+pub fn delete_tag(tag_name: &str) -> Result<()> {
+    delete_tag_in(std::path::Path::new("."), tag_name)
+}
+
+/// Delete a git tag in a specific project path
+pub fn delete_tag_in(project_path: &std::path::Path, tag_name: &str) -> Result<()> {
+    let repo = Repository::open(project_path)
+        .map_err(|e| anyhow!("Failed to open git repository at {}: {}", project_path.display(), e))?;
+
+    // Check if tag exists
+    if !tag_exists_in(project_path, tag_name)? {
+        return Err(anyhow!("Tag '{}' does not exist", tag_name));
+    }
+
+    // Delete the tag
+    repo.tag_delete(tag_name)?;
+
+    println!("🗑️  Deleted tag: {}", tag_name);
+    Ok(())
+}
+
+/// Revert the last N commits
+pub fn revert_last_commit() -> Result<()> {
+    revert_last_commit_in(std::path::Path::new("."))
+}
+
+/// Revert the last commit in a specific project path
+pub fn revert_last_commit_in(project_path: &std::path::Path) -> Result<()> {
+    let repo = Repository::open(project_path)
+        .map_err(|e| anyhow!("Failed to open git repository at {}: {}", project_path.display(), e))?;
+
+    // Get HEAD commit
+    let head = repo.head()?;
+    let head_commit = head.peel_to_commit()?;
+
+    // Check if there is a parent (can't revert initial commit)
+    if head_commit.parent_count() == 0 {
+        return Err(anyhow!("Cannot revert initial commit"));
+    }
+
+    // Get parent commit
+    let parent_commit = head_commit.parent(0)?;
+
+    // Reset HEAD to parent (soft reset - keeps working directory changes)
+    repo.reset(parent_commit.as_object(), git2::ResetType::Soft, None)?;
+
+    println!("⏮️  Reverted last commit: {}", head_commit.id());
+    Ok(())
+}
+
 /// Initialize a new git repository (for testing)
 #[cfg(test)]
 pub fn init_test_repo(path: &Path) -> Result<Repository> {
