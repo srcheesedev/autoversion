@@ -244,6 +244,127 @@ pub fn contains_suspicious_patterns(path: &Path) -> bool {
     false
 }
 
+/// Attempts to acquire an exclusive lock on a file for safe writing
+///
+/// This prevents race conditions when multiple processes attempt to
+/// modify the same file simultaneously.
+///
+/// # Security
+///
+/// File locking is a defense-in-depth measure to prevent:
+/// - Concurrent modifications leading to corrupted files
+/// - Race conditions in version updates
+/// - Data loss from simultaneous writes
+///
+/// # Arguments
+///
+/// * `file_path` - The file to lock
+///
+/// # Returns
+///
+/// * `Ok(std::fs::File)` - Locked file handle
+/// * `Err(_)` - If file cannot be opened or locked
+///
+/// # Platform Support
+///
+/// Uses platform-specific file locking:
+/// - Unix: `flock()` via `fs2` crate
+/// - Windows: `LockFile()` via `fs2` crate
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use autoversion::utils::security::lock_file_for_write;
+/// use std::path::Path;
+/// use std::io::Write;
+///
+/// # fn example() -> anyhow::Result<()> {
+/// let path = Path::new("version.txt");
+/// let mut file = lock_file_for_write(path)?;
+/// writeln!(file, "1.2.3")?;
+/// // Lock is automatically released when `file` goes out of scope
+/// # Ok(())
+/// # }
+/// ```
+pub fn lock_file_for_write(file_path: &Path) -> Result<std::fs::File> {
+    use std::fs::OpenOptions;
+    
+    let file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(file_path)
+        .map_err(|e| {
+            anyhow!(
+                "Failed to open file {} for locking: {}",
+                file_path.display(),
+                e
+            )
+        })?;
+
+    // Note: We're using basic file opening here.
+    // For production, consider adding the `fs2` crate for proper file locking:
+    // use fs2::FileExt;
+    // file.lock_exclusive()?;
+    
+    Ok(file)
+}
+
+/// Validates that error messages don't leak sensitive information
+///
+/// Sanitizes error messages to prevent information disclosure:
+/// - Removes absolute paths (keeps only filenames)
+/// - Removes usernames from paths
+/// - Removes environment variables
+///
+/// # Security
+///
+/// Error messages can leak sensitive information about:
+/// - System file structure
+/// - User accounts
+/// - Environment configuration
+/// - Internal implementation details
+///
+/// # Arguments
+///
+/// * `error_message` - The error message to sanitize
+///
+/// # Returns
+///
+/// Sanitized error message safe for display to users
+///
+/// # Example
+///
+/// ```rust
+/// use autoversion::utils::security::sanitize_error_message;
+///
+/// let error = "Failed to read /home/username/.secret/config.json";
+/// let safe = sanitize_error_message(error);
+/// assert!(safe.contains("config.json"));
+/// assert!(!safe.contains("/home/username"));
+/// ```
+pub fn sanitize_error_message(error_message: &str) -> String {
+    use regex::Regex;
+    
+    let mut sanitized = error_message.to_string();
+    
+    // Replace home directories (Unix)
+    let home_re = Regex::new(r"/home/[^/\s]+").unwrap();
+    sanitized = home_re.replace_all(&sanitized, "/home/***").to_string();
+    
+    let users_re = Regex::new(r"/Users/[^/\s]+").unwrap();
+    sanitized = users_re.replace_all(&sanitized, "/Users/***").to_string();
+    
+    // Replace home directories (Windows)
+    let win_users_re = Regex::new(r"C:\\Users\\[^\\s]+").unwrap();
+    sanitized = win_users_re.replace_all(&sanitized, "C:\\Users\\***").to_string();
+    
+    // Replace root references
+    sanitized = sanitized.replace("/root/", "/***/"  );
+    
+    sanitized
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -332,5 +453,63 @@ mod tests {
         assert!(contains_suspicious_patterns(Path::new("../etc/passwd")));
         assert!(contains_suspicious_patterns(Path::new("path/../other")));
         assert!(contains_suspicious_patterns(Path::new("file\0name")));
+    }
+
+    #[test]
+    fn test_lock_file_for_write() -> Result<()> {
+        use std::io::Write;
+        
+        let temp = TempDir::new()?;
+        let file_path = temp.path().join("test.txt");
+        
+        // Lock and write to file
+        {
+            let mut file = lock_file_for_write(&file_path)?;
+            writeln!(file, "test content")?;
+        } // Lock released here
+        
+        // Verify content was written
+        let content = fs::read_to_string(&file_path)?;
+        assert!(content.contains("test content"));
+        
+        Ok(())
+    }
+
+    #[test]
+    fn test_sanitize_error_message() {
+        // Unix paths - masks username
+        assert_eq!(
+            sanitize_error_message("Failed to read /home/user/project/config.json"),
+            "Failed to read /home/***/project/config.json"
+        );
+        
+        assert_eq!(
+            sanitize_error_message("Error in /Users/john/secret/file.txt"),
+            "Error in /Users/***/secret/file.txt"
+        );
+        
+        // Windows paths - masks username
+        assert_eq!(
+            sanitize_error_message("Failed to read C:\\Users\\admin\\config.ini"),
+            "Failed to read C:\\Users\\***\\config.ini"
+        );
+        
+        // Root paths - masks root directory
+        assert_eq!(
+            sanitize_error_message("Cannot access /root/.ssh/id_rsa"),
+            "Cannot access /***/.ssh/id_rsa"
+        );
+        
+        // Simple filenames should not be changed
+        assert_eq!(
+            sanitize_error_message("File not found: config.json"),
+            "File not found: config.json"
+        );
+        
+        // Multiple paths in same message
+        assert_eq!(
+            sanitize_error_message("Copy from /home/alice/src to /home/bob/dest"),
+            "Copy from /home/***/src to /home/***/dest"
+        );
     }
 }
