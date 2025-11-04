@@ -361,14 +361,25 @@ mod tests {
 
     #[test]
     fn test_default_format_detection() {
+        use std::sync::{Mutex, OnceLock};
+        static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        let _lock = ENV_LOCK.get_or_init(|| Mutex::new(())).lock().unwrap_or_else(|e| e.into_inner());
+        
+        // Save previous value
+        let prev = env::var("GITHUB_ACTIONS").ok();
+        
         // Test GitHub Actions environment detection
         env::set_var("GITHUB_ACTIONS", "true");
-    let _output = ActionOutput::new();
+        let _output = ActionOutput::new();
         
         // In real usage, this would be detected in write_outputs()
         // Here we just test that the environment variable exists
         assert!(env::var("GITHUB_ACTIONS").is_ok());
         
+        // Restore previous value
         env::remove_var("GITHUB_ACTIONS");
+        if let Some(val) = prev {
+            env::set_var("GITHUB_ACTIONS", val);
+        }
     }
 }
