@@ -4,6 +4,7 @@ use regex::Regex;
 use semver::Version;
 use std::path::Path;
 
+use crate::constants::DEFAULT_TAG_PREFIX;
 use crate::core::semver::BumpType;
 
 /// Analyzes git commit history to determine appropriate version bump
@@ -29,7 +30,7 @@ impl CommitAnalyzer {
             .map_err(|e| anyhow!("Failed to open git repository at {}: {}", repo_path.display(), e))?;
 
         // Try to find the tag for current version
-        let version_tag = format!("v{}", current_version);
+        let version_tag = format!("{}{}", DEFAULT_TAG_PREFIX, current_version);
         let tag_commit = self.find_tag_commit(&repo, &version_tag)?;
 
         // Get commits since the tag (or all commits if no tag found)
@@ -143,7 +144,7 @@ impl CommitAnalyzer {
     /// Get a summary of commit analysis for debugging
     pub fn analyze_commits_detailed(&self, repo_path: &Path, current_version: &Version) -> Result<CommitAnalysis> {
         let repo = Repository::open(repo_path)?;
-        let version_tag = format!("v{}", current_version);
+        let version_tag = format!("{}{}", DEFAULT_TAG_PREFIX, current_version);
         let tag_commit = self.find_tag_commit(&repo, &version_tag)?;
         let commits = self.get_commits_since(&repo, tag_commit)?;
 

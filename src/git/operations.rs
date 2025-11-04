@@ -2,6 +2,8 @@ use anyhow::{anyhow, Result};
 use git2::{Repository, Signature};
 use std::path::Path;
 
+use crate::constants::git::{DEFAULT_COMMIT_MESSAGE_PREFIX, DEFAULT_TAG_MESSAGE_PREFIX};
+
 /// Create a git tag for the given version
 pub fn create_tag(tag_name: &str, version: &str) -> Result<()> {
     // Backwards-compatible wrapper that creates tag in current directory
@@ -21,7 +23,7 @@ pub fn create_tag_in(project_path: &std::path::Path, tag_name: &str, version: &s
     let signature = get_git_signature(&repo)?;
 
     // Create annotated tag
-    let message = format!("Release version {}", version);
+    let message = format!("{} {}", DEFAULT_TAG_MESSAGE_PREFIX, version);
     repo.tag(tag_name, &commit.into_object(), &signature, &message, false)?;
 
     println!("✅ Created tag: {}", tag_name);
@@ -57,7 +59,7 @@ pub fn commit_version_changes_in(project_path: &std::path::Path, files: &[String
     let signature = get_git_signature(&repo)?;
 
     // Commit message
-    let message = format!("chore: bump version to {}", version);
+    let message = format!("chore: {} {}", DEFAULT_COMMIT_MESSAGE_PREFIX, version);
 
     // Create commit
     repo.commit(
