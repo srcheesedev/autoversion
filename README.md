@@ -55,6 +55,28 @@ Run `autoversion` in your project directory. Example:
 ./autoversion -b auto
 ```
 
+### Quick Reference
+
+```bash
+# Auto-detect and auto-bump
+./autoversion -b auto
+
+# Patch bump with git tag
+./autoversion -b patch -c
+
+# Minor bump with tag and commit
+./autoversion -b minor -c -C
+
+# Preview changes (dry run)
+./autoversion -b auto -d -v
+
+# Force bump (ignore uncommitted changes)
+./autoversion -b patch -f
+
+# Specify technology explicitly
+./autoversion -t npm -b minor -c -C
+```
+
 ### Common Options
 
 - `-b`, `--bump-type`: Version bump type (`auto`, `major`, `minor`, `patch`)
