@@ -1,5 +1,9 @@
 # 🚀 Autoversion (Rust CLI)
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org)
+[![Tests](https://img.shields.io/badge/tests-174%2B%20passing-success)](tests/)
+
 Universal semantic versioning automation for any technology stack. Built in Rust for maximum performance and reliability.
 
 ## ✨ Features
@@ -226,20 +230,33 @@ When using in CI, prefer a small wrapper repo per platform that downloads the co
 
 ## 🚧 Roadmap
 
-### Phase 2 (Coming Soon)
+### ✅ Completed
 
 - ✅ Full Cargo.toml support
 - ✅ Maven pom.xml support  
+- ✅ Gradle build system support
 - ✅ Python pyproject.toml support
-- ✅ Monorepo support
-- ✅ Changelog generation
+- ✅ Go modules support
+- ✅ PHP Composer support
+- ✅ Generic version file support
+- ✅ Comprehensive test coverage (174+ tests)
+- ✅ Security hardening (path validation, file locking)
 
 ### Phase 3 (Future)
 
-- 🔄 Go modules support
+- 🔄 Integration and E2E tests
+- 🔄 Monorepo support
+- 🔄 Changelog generation
 - 🔄 Ruby gems support
 - 🔄 Custom version patterns
 - 🔄 Rollback functionality
+- 🔄 CI/CD platform wrappers (GitHub Actions, GitLab CI)
+
+## 📚 Documentation
+
+- **[Architecture Guide](ARCHITECTURE.md)** - System design, patterns, and module structure
+- **[Contributing Guide](CONTRIBUTING.md)** - Development setup, coding standards, and testing
+- **[Code Review](CODE_REVIEW.md)** - Code quality analysis and refactoring roadmap
 
 ## 🤝 Contributing
 
