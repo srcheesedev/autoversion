@@ -321,3 +321,4 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 **Made with ❤️ and ⚡ by [@srcheesedev](https://github.com/srcheesedev)**
 
 For support, please [open an issue](https://github.com/srcheesedev/autoversion-ghaction/issues) or start a [discussion](https://github.com/srcheesedev/autoversion-ghaction/discussions).
+

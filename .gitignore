@@ -41,3 +41,5 @@ test-*/
 ### Build / CI artifacts ###
 # GitHub Action artifacts or wrappers should not be in this repository for a source-only project
 # (they live in separate wrapper repos)
+Cargo.lock
+Cargo.toml.autoversion.backup

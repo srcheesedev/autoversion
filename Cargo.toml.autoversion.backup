@@ -40,7 +40,7 @@ keywords = [
 license = "MIT"
 name = "autoversion"
 repository = "https://github.com/srcheesedev/autoversion-ghaction"
-version = "0.2.0"
+version = "0.2.1"
 
 [profile.release]
 codegen-units = 1
