@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org)
-[![Tests](https://img.shields.io/badge/tests-222%20passing-success)](tests/)
+[![Tests](https://img.shields.io/badge/tests-397%20passing-success)](tests/)
 
 Universal semantic versioning automation for any technology stack. Built in Rust for maximum performance and reliability.
 
@@ -261,14 +261,15 @@ When using in CI, prefer a small wrapper repo per platform that downloads the co
 - ✅ Go modules support
 - ✅ PHP Composer support
 - ✅ Generic version file support
-- ✅ Comprehensive test coverage (222 tests: unit, contract, E2E, integration)
+- ✅ Comprehensive test coverage (397 tests: unit, contract, E2E, integration)
 - ✅ Security hardening (path validation, file locking)
 - ✅ Integration and E2E testing
 
 ### Phase 3 (In Progress)
 
-- ✅ Integration and E2E tests (222 tests)
-- 🔄 Rollback functionality
+- ✅ Integration and E2E tests (397 tests)
+- ✅ Dependency version safety tests (Cargo, Maven)
+- 🔄 Rollback functionality (file restoration complete, git ops pending)
 - 🔄 Monorepo support
 - 🔄 Custom version patterns
 - 🔄 Ruby gems support
