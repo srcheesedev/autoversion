@@ -9,6 +9,8 @@ pub enum Technology {
     Cargo,
     Maven,
     Python,
+    Go,
+    Composer,
     Generic,
 }
 
@@ -19,6 +21,8 @@ impl std::fmt::Display for Technology {
             Technology::Cargo => write!(f, "cargo"),
             Technology::Maven => write!(f, "maven"),
             Technology::Python => write!(f, "python"),
+            Technology::Go => write!(f, "go"),
+            Technology::Composer => write!(f, "composer"),
             Technology::Generic => write!(f, "generic"),
         }
     }
@@ -33,8 +37,10 @@ impl std::str::FromStr for Technology {
             "cargo" => Ok(Technology::Cargo),
             "maven" => Ok(Technology::Maven),
             "python" => Ok(Technology::Python),
+            "go" | "golang" => Ok(Technology::Go),
+            "composer" | "php" => Ok(Technology::Composer),
             "generic" => Ok(Technology::Generic),
-            _ => Err(anyhow!("Unsupported technology: {}. Supported: npm, cargo, maven, python, generic", s)),
+            _ => Err(anyhow!("Unsupported technology: {}. Supported: npm, cargo, maven, python, go, composer, generic", s)),
         }
     }
 }
@@ -86,6 +92,16 @@ impl TechnologyDetector {
                     priority: 75,
                 },
                 DetectionPattern {
+                    technology: Technology::Go,
+                    files: vec!["go.mod"],
+                    priority: 85,
+                },
+                DetectionPattern {
+                    technology: Technology::Composer,
+                    files: vec!["composer.json"],
+                    priority: 80,
+                },
+                DetectionPattern {
                     technology: Technology::Generic,
                     files: vec!["VERSION", "version.txt", ".version"],
                     priority: 10, // Lowest priority - fallback
@@ -100,7 +116,7 @@ impl TechnologyDetector {
         
         if results.is_empty() {
             return Err(anyhow!(
-                "No supported technology detected in {}. Supported: npm (package.json), cargo (Cargo.toml), maven (pom.xml), python (pyproject.toml), generic (VERSION)",
+                "No supported technology detected in {}. Supported: npm (package.json), cargo (Cargo.toml), maven (pom.xml), python (pyproject.toml), go (go.mod), composer (composer.json), generic (VERSION)",
                 project_path.display()
             ));
         }
@@ -254,6 +270,20 @@ impl TechnologyDetector {
                 // pyproject.toml should have version, setup.py might have it in different forms
                 if result.primary_file.file_name().unwrap() == "pyproject.toml" && !content.contains("version") {
                     return Err(anyhow!("pyproject.toml does not contain version field"));
+                }
+            }
+            Technology::Go => {
+                // go.mod doesn't contain module version (uses git tags)
+                // Just validate it's a valid go.mod file
+                if !content.contains("module ") {
+                    return Err(anyhow!("go.mod does not contain module declaration"));
+                }
+            }
+            Technology::Composer => {
+                // composer.json may or may not have version field
+                // Just validate it's valid JSON
+                if !content.contains("{") {
+                    return Err(anyhow!("composer.json is not valid JSON"));
                 }
             }
             Technology::Generic => {

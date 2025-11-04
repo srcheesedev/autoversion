@@ -16,10 +16,12 @@ Universal semantic versioning automation for any technology stack. Built in Rust
 | Technology | Files | Status |
 |------------|-------|--------|
 | **NPM** | `package.json`, `package-lock.json` | ✅ Ready |
+| **Cargo** | `Cargo.toml`, `Cargo.lock` | ✅ Ready |
+| **Maven** | `pom.xml` | ✅ Ready |
+| **Python** | `pyproject.toml`, `setup.py` | ✅ Ready |
+| **Go** | `go.mod`, `VERSION` (optional) | ✅ Ready |
+| **PHP/Composer** | `composer.json`, `composer.lock` | ✅ Ready |
 | **Generic** | `VERSION`, `version.txt`, `.version` | ✅ Ready |
-| **Cargo** | `Cargo.toml`, `Cargo.lock` | 🔄 Phase 2 |
-| **Maven** | `pom.xml` | 🔄 Phase 2 |
-| **Python** | `pyproject.toml`, `setup.py` | 🔄 Phase 2 |
 
 ## 🚀 Quick Start
 

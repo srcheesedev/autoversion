@@ -7,6 +7,8 @@ use super::npm::NpmUpdater;
 use super::cargo::CargoUpdater;
 use super::maven::MavenUpdater;
 use super::python::PythonUpdater;
+use super::go::GoUpdater;
+use super::composer::ComposerUpdater;
 use super::generic::GenericUpdater;
 
 /// Factory for creating appropriate version updaters
@@ -22,6 +24,8 @@ impl UpdaterFactory {
             Technology::Cargo => Arc::new(CargoUpdater::new()),
             Technology::Maven => Arc::new(MavenUpdater::new()),
             Technology::Python => Arc::new(PythonUpdater::new()),
+            Technology::Go => Arc::new(GoUpdater::new()),
+            Technology::Composer => Arc::new(ComposerUpdater::new()),
             Technology::Generic => Arc::new(GenericUpdater::new()),
         };
         
@@ -44,6 +48,8 @@ impl UpdaterFactory {
             Arc::new(CargoUpdater::new()),
             Arc::new(MavenUpdater::new()),
             Arc::new(PythonUpdater::new()),
+            Arc::new(GoUpdater::new()),
+            Arc::new(ComposerUpdater::new()),
             Arc::new(GenericUpdater::new()),
         ]
     }
