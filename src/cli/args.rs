@@ -5,7 +5,7 @@ use std::path::PathBuf;
 #[derive(Parser, Debug)]
 #[command(name = "autoversion")]
 #[command(author = "srcheesedev")]
-#[command(version = "0.1.0")]
+#[command(version = "0.2.1")]
 #[command(about = "Automatically manage semantic versioning for any project")]
 #[command(long_about = None)]
 pub struct Args {
@@ -123,6 +123,46 @@ pub struct Args {
         help = "Analyze commits and show recommended version bump"
     )]
     pub analyze: bool,
+
+    /// Rollback the last version bump
+    #[arg(
+        short = 'r',
+        long = "rollback",
+        action = clap::ArgAction::SetTrue,
+        help = "Rollback the last version bump"
+    )]
+    pub rollback: bool,
+
+    /// Specific version to rollback (for tag deletion)
+    #[arg(
+        long = "rollback-version",
+        help = "Specific version to rollback (e.g., '1.2.3')"
+    )]
+    pub rollback_version: Option<String>,
+
+    /// Only restore files when rolling back, skip git operations
+    #[arg(
+        long = "rollback-files-only",
+        action = clap::ArgAction::SetTrue,
+        help = "Only restore files from backups, skip git operations"
+    )]
+    pub rollback_files_only: bool,
+
+    /// Only perform git operations when rolling back, skip file restoration
+    #[arg(
+        long = "rollback-git-only",
+        action = clap::ArgAction::SetTrue,
+        help = "Only perform git operations, skip file restoration"
+    )]
+    pub rollback_git_only: bool,
+
+    /// Revert the last commit when rolling back
+    #[arg(
+        long = "rollback-revert-commit",
+        action = clap::ArgAction::SetTrue,
+        help = "Revert the last git commit"
+    )]
+    pub rollback_revert_commit: bool,
 }
 
 impl Args {
@@ -180,6 +220,38 @@ impl Args {
 
         if (self.show_info || self.analyze) && self.dry_run {
             return Err("--dry-run is redundant with --show-info or --analyze".to_string());
+        }
+
+        // Validate rollback options
+        if self.rollback {
+            if self.rollback_files_only && self.rollback_git_only {
+                return Err("Cannot use --rollback-files-only and --rollback-git-only together".to_string());
+            }
+
+            // Rollback mode conflicts with version bump operations
+            if self.create_tag || self.commit {
+                return Err("Cannot use --create-tag or --commit with --rollback".to_string());
+            }
+
+            if !self.dry_run && self.bump_type != "auto" {
+                return Err("Cannot specify --bump-type with --rollback".to_string());
+            }
+        }
+
+        // Validate rollback-specific options only used with rollback
+        if !self.rollback {
+            if self.rollback_version.is_some() {
+                return Err("--rollback-version can only be used with --rollback".to_string());
+            }
+            if self.rollback_files_only {
+                return Err("--rollback-files-only can only be used with --rollback".to_string());
+            }
+            if self.rollback_git_only {
+                return Err("--rollback-git-only can only be used with --rollback".to_string());
+            }
+            if self.rollback_revert_commit {
+                return Err("--rollback-revert-commit can only be used with --rollback".to_string());
+            }
         }
 
         Ok(())

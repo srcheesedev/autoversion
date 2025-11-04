@@ -8,6 +8,7 @@ mod cli;
 mod constants;
 mod core;
 mod git;
+mod rollback;
 mod updaters;
 mod utils;
 
@@ -30,6 +31,11 @@ fn main() -> Result<()> {
     
     if args.analyze {
         return analyze_commits(&args.path, args.verbose);
+    }
+    
+    // Handle rollback command
+    if args.rollback {
+        return execute_rollback(&args);
     }
     
     // Validate and execute version bump
@@ -109,6 +115,49 @@ fn handle_git_operations(
         git::operations::create_tag_in(project_path, &tag_name, new_version)?;
         output.set_tag_created(true);
     }
+    Ok(())
+}
+
+/// Executes rollback operation
+///
+/// Orchestrates the rollback process:
+/// 1. Validate project path
+/// 2. Create RollbackOptions from CLI args
+/// 3. Execute rollback
+/// 4. Display results
+fn execute_rollback(args: &Args) -> Result<()> {
+    let validated_path = validate_project_path(&args.path)?;
+    
+    // Build rollback options from CLI args
+    let options = rollback::RollbackOptions {
+        restore_files: !args.rollback_git_only,
+        delete_tags: !args.rollback_files_only,
+        revert_commits: args.rollback_revert_commit,
+        version: args.rollback_version.clone(),
+    };
+    
+    // Execute rollback
+    let restored_files = rollback::rollback(&validated_path, &options)?;
+    
+    // Display results
+    if restored_files.is_empty() {
+        println!("ℹ️  No backup files found to restore");
+    } else {
+        println!("✅ Rollback completed successfully!");
+        println!("📁 Restored {} file(s):", restored_files.len());
+        for file in &restored_files {
+            println!("   - {}", file.display());
+        }
+    }
+    
+    if options.delete_tags && options.version.is_some() {
+        println!("🏷️  Deleted git tag: v{}", options.version.as_ref().unwrap());
+    }
+    
+    if options.revert_commits {
+        println!("↩️  Reverted last git commit");
+    }
+    
     Ok(())
 }
 
