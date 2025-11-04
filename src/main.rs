@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use anyhow::Result;
 use clap::Parser;
 
@@ -39,6 +41,8 @@ fn main() -> Result<()> {
     };
     
     output.set_technology(&technology);
+    // Configure output tag prefix
+    output.set_tag_prefix(&args.tag_prefix);
     
     // Create appropriate updater
     let updater = UpdaterFactory::create(&technology)?;
@@ -66,7 +70,7 @@ fn main() -> Result<()> {
         // Create git tag if requested
         if args.create_tag {
             let tag_name = format!("{}{}", args.tag_prefix, new_version);
-            git::operations::create_tag(&tag_name, &new_version)?;
+            git::operations::create_tag_in(&args.path, &tag_name, &new_version)?;
             output.set_tag_created(true);
         }
     }

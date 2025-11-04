@@ -1,11 +1,159 @@
 use anyhow::{anyhow, Result};
-use std::fs;
 use std::path::{Path, PathBuf};
 
 use super::traits::{VersionUpdater, VersionChange};
-use crate::utils::files::backup_file;
+use crate::utils::files::{backup_file, read_file_safe, write_file_safe};
 
-/// Generic version file updater for VERSION, version.txt, .version files
+/// Generic version file updater
+///
+/// Implements version management for projects using plain text version files.
+/// This updater serves as a universal fallback when no technology-specific
+/// manifest file (package.json, Cargo.toml, etc.) is found.
+///
+/// # Supported File Names (Priority Order)
+///
+/// 1. `VERSION` - Most common convention
+/// 2. `version.txt` - Windows-friendly variant
+/// 3. `.version` - Hidden file convention
+/// 4. `version` - Lowercase variant
+/// 5. `VERSION.txt` - Alternative convention
+///
+/// # Version Detection Strategy
+///
+/// Searches for version files in priority order and parses content supporting:
+///
+/// **Format 1: Plain version (most common)**
+/// ```text
+/// 1.2.3
+/// ```
+///
+/// **Format 2: Version with 'v' prefix**
+/// ```text
+/// v1.2.3
+/// ```
+///
+/// **Format 3: Key-value format**
+/// ```text
+/// version=1.2.3
+/// ```
+///
+/// **Format 4: Multi-line with label**
+/// ```text
+/// Version: 1.2.3
+/// Build: 2024-01-01
+/// ```
+///
+/// The parser extracts the first valid semantic version found.
+///
+/// # Update Strategy
+///
+/// 1. Find version file using priority list
+/// 2. Read and parse current content to detect format
+/// 3. Update version while **preserving original format**:
+///    - Plain "1.2.3" stays plain
+///    - "v1.2.3" maintains 'v' prefix
+///    - "version=1.2.3" maintains key-value format
+/// 4. Create .autoversion.backup before modification
+/// 5. Write updated content with preserved formatting
+///
+/// # Examples
+///
+/// ## Basic Usage
+///
+/// ```no_run
+/// use autoversion::updaters::generic::GenericUpdater;
+/// use autoversion::updaters::traits::VersionUpdater;
+/// use std::path::Path;
+///
+/// let updater = GenericUpdater::new();
+/// let project = Path::new("./my-project");
+///
+/// // Find and read version file
+/// let current = updater.get_current_version(project)?;
+/// println!("Current version: {}", current);
+///
+/// // Update version
+/// let files = updater.update_version(project, "2.0.0")?;
+/// println!("Updated files: {:?}", files);
+/// # Ok::<(), anyhow::Error>(())
+/// ```
+///
+/// ## Format Preservation
+///
+/// ```text
+/// # Input: VERSION file containing "v1.2.3"
+/// # After update to 2.0.0
+/// # Output: VERSION file contains "v2.0.0"
+/// # The 'v' prefix is preserved!
+/// ```
+///
+/// # Design Principles
+///
+/// **1. Format Preservation**
+/// Users choose their preferred format for a reason. We respect and preserve:
+/// - Version prefixes ('v', 'version=', etc.)
+/// - Whitespace and line endings
+/// - Additional content in the file (comments, metadata)
+///
+/// **2. Intelligent Parsing**
+/// Uses regex patterns to extract version from various formats without
+/// requiring exact format specification from the user.
+///
+/// **3. Fallback Strategy**
+/// Acts as the last resort updater when no technology-specific file is found,
+/// ensuring autoversion works with ANY project structure.
+///
+/// # TDD Documentation
+///
+/// Comprehensive test coverage includes:
+/// - All supported file names (VERSION, version.txt, etc.)
+/// - All format variants (plain, v-prefix, key-value)
+/// - Format preservation during updates
+/// - Multi-line file handling
+/// - Error cases (missing files, invalid versions)
+/// - Edge cases (whitespace, case sensitivity)
+///
+/// Tests follow the Arrange-Act-Assert pattern with descriptive names.
+///
+/// # Use Cases
+///
+/// **1. Technology-Agnostic Projects**
+/// - Shell scripts
+/// - Documentation projects
+/// - Configuration repositories
+///
+/// **2. Multi-Language Monorepos**
+/// - Unified version across multiple technologies
+/// - Single VERSION file at repo root
+///
+/// **3. Legacy Projects**
+/// - Projects without modern manifest files
+/// - Migration from manual version management
+///
+/// **4. Custom Build Systems**
+/// - Projects with non-standard tooling
+/// - Internal corporate build systems
+///
+/// # Limitations
+///
+/// **Complex Versioning Schemes:**
+/// Only supports semantic versioning (MAJOR.MINOR.PATCH with optional
+/// pre-release and build metadata). Does not support:
+/// - Date-based versions (2024.01.15)
+/// - Single-component versions (v7)
+/// - Non-standard schemes
+///
+/// **Multi-Version Files:**
+/// Only updates the FIRST version found. If your version file contains
+/// multiple versions, only the first match is updated.
+///
+/// # Error Handling
+///
+/// Returns `anyhow::Result` for all operations. Common error scenarios:
+/// - No version file found in project root
+/// - Invalid semantic version format in file
+/// - File contains no recognizable version pattern
+/// - File system I/O errors
 pub struct GenericUpdater {
     /// Possible version file names in order of preference
     version_files: Vec<&'static str>,
@@ -120,8 +268,7 @@ impl VersionUpdater for GenericUpdater {
         let version_file = self.find_version_file(project_path)
             .ok_or_else(|| anyhow!("No version file found. Looked for: {:?}", self.version_files))?;
 
-        let content = fs::read_to_string(&version_file)
-            .map_err(|e| anyhow!("Failed to read version file {}: {}", version_file.display(), e))?;
+        let content = read_file_safe(&version_file)?;
 
         self.parse_version_content(&content)
     }
@@ -139,7 +286,7 @@ impl VersionUpdater for GenericUpdater {
         // Read original content if file exists
         let original_content = if version_file.exists() {
             backup_file(&version_file)?;
-            Some(fs::read_to_string(&version_file)?)
+            Some(read_file_safe(&version_file)?)
         } else {
             None
         };
@@ -151,7 +298,7 @@ impl VersionUpdater for GenericUpdater {
         );
 
         // Write updated content
-        fs::write(&version_file, new_content)?;
+        write_file_safe(&version_file, &new_content)?;
         updated_files.push(version_file.to_string_lossy().to_string());
 
         Ok(updated_files)
@@ -159,7 +306,7 @@ impl VersionUpdater for GenericUpdater {
 
     fn validate_project(&self, project_path: &Path) -> Result<()> {
         if let Some(version_file) = self.find_version_file(project_path) {
-            let content = fs::read_to_string(&version_file)?;
+            let content = read_file_safe(&version_file)?;
             self.parse_version_content(&content)?;
             Ok(())
         } else {
@@ -198,7 +345,7 @@ impl VersionUpdater for GenericUpdater {
         };
 
         let old_content = if version_file.exists() {
-            fs::read_to_string(&version_file)?
+            read_file_safe(&version_file)?
         } else {
             String::new()
         };
@@ -230,6 +377,7 @@ impl VersionUpdater for GenericUpdater {
 mod tests {
     use super::*;
     use tempfile::TempDir;
+    use std::fs;
 
     #[test]
     fn test_parse_version_plain() -> Result<()> {

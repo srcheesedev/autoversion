@@ -37,12 +37,15 @@ impl Default for OutputData {
 /// Handle different output formats for autoversion results
 pub struct ActionOutput {
     data: OutputData,
+    // prefix to use when constructing tag names (default "v")
+    tag_prefix: String,
 }
 
 impl ActionOutput {
     pub fn new() -> Self {
         Self {
             data: OutputData::default(),
+            tag_prefix: "v".to_string(),
         }
     }
 
@@ -75,8 +78,17 @@ impl ActionOutput {
     pub fn set_tag_created(&mut self, created: bool) {
         self.data.tag_created = created;
         if created && !self.data.version.is_empty() {
-            // Assume tag prefix is 'v' - this could be made configurable
-            self.data.tag_name = Some(format!("v{}", self.data.version));
+            // Build tag name using configured prefix
+            self.data.tag_name = Some(format!("{}{}", self.tag_prefix, self.data.version));
+        }
+    }
+
+    /// Set tag prefix used when constructing tag names (default: "v")
+    pub fn set_tag_prefix(&mut self, prefix: &str) {
+        self.tag_prefix = prefix.to_string();
+        // If tag was already created and version present, update tag_name accordingly
+        if self.data.tag_created && !self.data.version.is_empty() {
+            self.data.tag_name = Some(format!("{}{}", self.tag_prefix, self.data.version));
         }
     }
 
@@ -351,7 +363,7 @@ mod tests {
     fn test_default_format_detection() {
         // Test GitHub Actions environment detection
         env::set_var("GITHUB_ACTIONS", "true");
-        let output = ActionOutput::new();
+    let _output = ActionOutput::new();
         
         // In real usage, this would be detected in write_outputs()
         // Here we just test that the environment variable exists

@@ -4,8 +4,14 @@ use std::path::Path;
 
 /// Create a git tag for the given version
 pub fn create_tag(tag_name: &str, version: &str) -> Result<()> {
-    let repo = Repository::open(".")
-        .map_err(|e| anyhow!("Failed to open git repository: {}", e))?;
+    // Backwards-compatible wrapper that creates tag in current directory
+    create_tag_in(std::path::Path::new("."), tag_name, version)
+}
+
+/// Create a git tag in a specific project path
+pub fn create_tag_in(project_path: &std::path::Path, tag_name: &str, version: &str) -> Result<()> {
+    let repo = Repository::open(project_path)
+        .map_err(|e| anyhow!("Failed to open git repository at {}: {}", project_path.display(), e))?;
 
     // Get the current HEAD commit
     let head = repo.head()?;
@@ -24,8 +30,13 @@ pub fn create_tag(tag_name: &str, version: &str) -> Result<()> {
 
 /// Commit changes with a version bump message
 pub fn commit_version_changes(files: &[String], version: &str) -> Result<()> {
-    let repo = Repository::open(".")
-        .map_err(|e| anyhow!("Failed to open git repository: {}", e))?;
+    commit_version_changes_in(std::path::Path::new("."), files, version)
+}
+
+/// Commit version changes in a specific project path
+pub fn commit_version_changes_in(project_path: &std::path::Path, files: &[String], version: &str) -> Result<()> {
+    let repo = Repository::open(project_path)
+        .map_err(|e| anyhow!("Failed to open git repository at {}: {}", project_path.display(), e))?;
 
     let mut index = repo.index()?;
     
@@ -64,8 +75,13 @@ pub fn commit_version_changes(files: &[String], version: &str) -> Result<()> {
 
 /// Check if the repository is clean (no uncommitted changes)
 pub fn is_repository_clean() -> Result<bool> {
-    let repo = Repository::open(".")
-        .map_err(|e| anyhow!("Failed to open git repository: {}", e))?;
+    is_repository_clean_in(std::path::Path::new("."))
+}
+
+/// Check if the repository at project_path is clean
+pub fn is_repository_clean_in(project_path: &std::path::Path) -> Result<bool> {
+    let repo = Repository::open(project_path)
+        .map_err(|e| anyhow!("Failed to open git repository at {}: {}", project_path.display(), e))?;
 
     let mut opts = git2::StatusOptions::new();
     opts.include_untracked(true);
@@ -74,7 +90,7 @@ pub fn is_repository_clean() -> Result<bool> {
 }
 
 /// Get git signature from configuration or create a fallback
-fn get_git_signature(repo: &Repository) -> Result<Signature> {
+fn get_git_signature(repo: &Repository) -> Result<Signature<'_>> {
     let config = repo.config()?;
     
     let name = config.get_string("user.name")
@@ -89,8 +105,13 @@ fn get_git_signature(repo: &Repository) -> Result<Signature> {
 
 /// Check if a tag already exists
 pub fn tag_exists(tag_name: &str) -> Result<bool> {
-    let repo = Repository::open(".")
-        .map_err(|e| anyhow!("Failed to open git repository: {}", e))?;
+    tag_exists_in(std::path::Path::new("."), tag_name)
+}
+
+/// Check if a tag exists in the repository at project_path
+pub fn tag_exists_in(project_path: &std::path::Path, tag_name: &str) -> Result<bool> {
+    let repo = Repository::open(project_path)
+        .map_err(|e| anyhow!("Failed to open git repository at {}: {}", project_path.display(), e))?;
 
     let result = match repo.find_reference(&format!("refs/tags/{}", tag_name)) {
         Ok(_) => Ok(true),
@@ -103,8 +124,13 @@ pub fn tag_exists(tag_name: &str) -> Result<bool> {
 
 /// Get the latest tag in the repository
 pub fn get_latest_tag() -> Result<Option<String>> {
-    let repo = Repository::open(".")
-        .map_err(|e| anyhow!("Failed to open git repository: {}", e))?;
+    get_latest_tag_in(std::path::Path::new("."))
+}
+
+/// Get latest tag in repository at project_path
+pub fn get_latest_tag_in(project_path: &std::path::Path) -> Result<Option<String>> {
+    let repo = Repository::open(project_path)
+        .map_err(|e| anyhow!("Failed to open git repository at {}: {}", project_path.display(), e))?;
 
     let tag_names = repo.tag_names(None)?;
     let mut tags = Vec::new();
@@ -129,8 +155,7 @@ pub fn init_test_repo(path: &Path) -> Result<Repository> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
-    use std::fs;
+    // std::fs is not used in these tests; remove to avoid unused import warning
 
     #[test]
     fn test_tag_operations() -> Result<()> {

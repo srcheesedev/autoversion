@@ -1,12 +1,75 @@
 use anyhow::{anyhow, Result};
 use serde_json::Value;
-use std::fs;
 use std::path::{Path, PathBuf};
 
 use super::traits::{VersionUpdater, VersionChange};
-use crate::utils::files::backup_file;
+use crate::utils::files::{backup_file, read_file_safe, write_file_safe};
 
-/// NPM package.json version updater
+/// NPM/Node.js package version updater
+///
+/// Implements version management for Node.js projects by updating:
+/// - `package.json` - Main package manifest (required)
+/// - `package-lock.json` - Dependency lock file (optional, updated if present)
+///
+/// # Version Detection Strategy
+///
+/// Reads the `version` field from `package.json` using JSON parsing.
+/// This is the canonical source for NPM package versions.
+///
+/// # Update Strategy
+///
+/// 1. Parses package.json as JSON
+/// 2. Updates the root-level `version` field
+/// 3. Preserves all other fields and formatting where possible
+/// 4. If package-lock.json exists, updates its version and packages version
+/// 5. Creates .autoversion.backup for both files before modification
+///
+/// # File Format
+///
+/// ```json
+/// {
+///   "name": "my-package",
+///   "version": "1.2.3",
+///   "description": "..."
+/// }
+/// ```
+///
+/// # Examples
+///
+/// ```no_run
+/// use autoversion::updaters::npm::NpmUpdater;
+/// use autoversion::updaters::traits::VersionUpdater;
+/// use std::path::Path;
+///
+/// let updater = NpmUpdater::new();
+/// let project = Path::new("./my-project");
+///
+/// // Get current version
+/// let current = updater.get_current_version(project)?;
+/// println!("Current version: {}", current);
+///
+/// // Update version
+/// let files = updater.update_version(project, "2.0.0")?;
+/// println!("Updated files: {:?}", files);
+/// # Ok::<(), anyhow::Error>(())
+/// ```
+///
+/// # TDD Documentation
+///
+/// This implementation is test-driven. See the test module for comprehensive
+/// coverage including:
+/// - Basic version reading and updating
+/// - package-lock.json handling
+/// - Error cases (malformed JSON, missing files)
+/// - Edge cases (nested version fields, workspaces)
+///
+/// # Error Handling
+///
+/// Returns `anyhow::Result` for all operations. Common error scenarios:
+/// - Missing package.json file
+/// - Invalid JSON format
+/// - Missing or malformed version field
+/// - File system I/O errors
 pub struct NpmUpdater;
 
 impl NpmUpdater {
@@ -58,7 +121,7 @@ impl NpmUpdater {
 
     /// Update package-lock.json version
     fn update_package_lock(&self, file_path: &PathBuf, new_version: &str) -> Result<()> {
-        let content = fs::read_to_string(file_path)?;
+        let content = read_file_safe(file_path)?;
         let mut lock_json: Value = serde_json::from_str(&content)
             .map_err(|e| anyhow!("Failed to parse package-lock.json: {}", e))?;
 
@@ -78,8 +141,8 @@ impl NpmUpdater {
             }
         }
 
-        let updated_content = serde_json::to_string_pretty(&lock_json)?;
-        fs::write(file_path, updated_content + "\n")?;
+    let updated_content = serde_json::to_string_pretty(&lock_json)?;
+    write_file_safe(file_path, &(updated_content + "\n"))?;
         
         Ok(())
     }
@@ -94,8 +157,7 @@ impl Default for NpmUpdater {
 impl VersionUpdater for NpmUpdater {
     fn get_current_version(&self, project_path: &Path) -> Result<String> {
         let package_json_path = project_path.join("package.json");
-        let content = fs::read_to_string(&package_json_path)
-            .map_err(|e| anyhow!("Failed to read package.json: {}", e))?;
+        let content = read_file_safe(&package_json_path)?;
 
         let package_json = self.parse_package_json(&content)?;
         
@@ -114,9 +176,9 @@ impl VersionUpdater for NpmUpdater {
         backup_file(&package_json_path)?;
 
         // Update package.json
-        let content = fs::read_to_string(&package_json_path)?;
+        let content = read_file_safe(&package_json_path)?;
         let updated_content = self.update_package_json_content(&content, new_version)?;
-        fs::write(&package_json_path, updated_content)?;
+        write_file_safe(&package_json_path, &updated_content)?;
         updated_files.push(package_json_path.to_string_lossy().to_string());
 
         // Update related files
@@ -139,7 +201,7 @@ impl VersionUpdater for NpmUpdater {
             return Err(anyhow!("package.json not found in {}", project_path.display()));
         }
 
-        let content = fs::read_to_string(&package_json_path)?;
+        let content = read_file_safe(&package_json_path)?;
         let package_json = self.parse_package_json(&content)?;
 
         if !package_json.get("version").and_then(|v| v.as_str()).is_some() {
@@ -172,7 +234,7 @@ impl VersionUpdater for NpmUpdater {
         // Preview package.json changes
         let package_json_path = project_path.join("package.json");
         if package_json_path.exists() {
-            let old_content = fs::read_to_string(&package_json_path)?;
+            let old_content = read_file_safe(&package_json_path)?;
             let new_content = self.update_package_json_content(&old_content, new_version)?;
             let old_version = self.get_current_version(project_path)?;
             
@@ -189,7 +251,7 @@ impl VersionUpdater for NpmUpdater {
         let related_files = self.find_related_files(project_path);
         for file_path in related_files {
             if file_path.file_name().unwrap() == "package-lock.json" {
-                let old_content = fs::read_to_string(&file_path)?;
+                let old_content = read_file_safe(&file_path)?;
                 
                 // Simulate the update to get new content
                 let mut lock_json: Value = serde_json::from_str(&old_content)?;
@@ -216,6 +278,7 @@ impl VersionUpdater for NpmUpdater {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
     use tempfile::TempDir;
 
     fn create_package_json(dir: &Path, version: &str) -> Result<()> {
