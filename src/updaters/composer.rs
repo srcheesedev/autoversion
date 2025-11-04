@@ -3,6 +3,7 @@ use serde_json::Value;
 use std::path::{Path, PathBuf};
 
 use super::traits::{VersionUpdater, VersionChange};
+use crate::constants::manifests::{PHP_COMPOSER, PHP_COMPOSER_LOCK};
 use crate::utils::files::{backup_file, read_file_safe, write_file_safe};
 
 /// PHP Composer package version updater
@@ -111,7 +112,7 @@ impl ComposerUpdater {
 
 impl VersionUpdater for ComposerUpdater {
     fn get_current_version(&self, project_path: &Path) -> Result<String> {
-        let composer_json = project_path.join("composer.json");
+        let composer_json = project_path.join(PHP_COMPOSER);
         let content = read_file_safe(&composer_json)?;
         
         let json: Value = self.parse_composer_json(&content)?;
@@ -127,7 +128,7 @@ impl VersionUpdater for ComposerUpdater {
         let mut updated_files = Vec::new();
         
         // Update composer.json
-        let composer_json = project_path.join("composer.json");
+        let composer_json = project_path.join(PHP_COMPOSER);
         let content = read_file_safe(&composer_json)?;
         
         backup_file(&composer_json)?;
@@ -137,7 +138,7 @@ impl VersionUpdater for ComposerUpdater {
         updated_files.push(composer_json.display().to_string());
         
         // Update composer.lock if it exists
-        let composer_lock = project_path.join("composer.lock");
+        let composer_lock = project_path.join(PHP_COMPOSER_LOCK);
         if composer_lock.exists() {
             let lock_content = read_file_safe(&composer_lock)?;
             backup_file(&composer_lock)?;
@@ -164,7 +165,7 @@ impl VersionUpdater for ComposerUpdater {
     }
 
     fn validate_project(&self, project_path: &Path) -> Result<()> {
-        let composer_json = project_path.join("composer.json");
+        let composer_json = project_path.join(PHP_COMPOSER);
         if !composer_json.exists() {
             return Err(anyhow!("composer.json not found. Not a valid Composer project."));
         }
@@ -176,7 +177,7 @@ impl VersionUpdater for ComposerUpdater {
     }
 
     fn get_primary_file(&self, project_path: &Path) -> Result<PathBuf> {
-        let composer_json = project_path.join("composer.json");
+        let composer_json = project_path.join(PHP_COMPOSER);
         if composer_json.exists() {
             Ok(composer_json)
         } else {
@@ -185,7 +186,7 @@ impl VersionUpdater for ComposerUpdater {
     }
 
     fn can_handle(&self, project_path: &Path) -> bool {
-        project_path.join("composer.json").exists()
+        project_path.join(PHP_COMPOSER).exists()
     }
 
     fn preview_changes(&self, project_path: &Path, new_version: &str) -> Result<Vec<VersionChange>> {
@@ -246,7 +247,7 @@ mod tests {
 
         // Arrange: Create composer.json
         fs::write(
-            project_path.join("composer.json"),
+            project_path.join(PHP_COMPOSER),
             r#"{"name": "vendor/package", "version": "1.0.0"}"#,
         ).unwrap();
 

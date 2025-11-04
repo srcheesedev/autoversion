@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use regex::Regex;
 
 use super::traits::{VersionUpdater, VersionChange};
+use crate::constants::manifests::{PYTHON_PYPROJECT, PYTHON_SETUP};
 use crate::utils::files::{backup_file, read_file_safe, write_file_safe};
 
 /// Python package version updater
@@ -174,7 +175,7 @@ impl Default for PythonUpdater {
 
 impl VersionUpdater for PythonUpdater {
     fn get_current_version(&self, project_path: &Path) -> Result<String> {
-        let pyproject = project_path.join("pyproject.toml");
+        let pyproject = project_path.join(PYTHON_PYPROJECT);
         if pyproject.exists() {
             let content = read_file_safe(&pyproject)?;
             if let Some(v) = self.parse_pyproject_version(&content) {
@@ -182,7 +183,7 @@ impl VersionUpdater for PythonUpdater {
             }
         }
 
-        let setup_py = project_path.join("setup.py");
+        let setup_py = project_path.join(PYTHON_SETUP);
         if setup_py.exists() {
             let content = read_file_safe(&setup_py)?;
             if let Some(v) = self.find_setup_py_version(&content) {
@@ -196,7 +197,7 @@ impl VersionUpdater for PythonUpdater {
     fn update_version(&self, project_path: &Path, new_version: &str) -> Result<Vec<String>> {
         let mut updated = Vec::new();
 
-        let pyproject = project_path.join("pyproject.toml");
+        let pyproject = project_path.join(PYTHON_PYPROJECT);
         if pyproject.exists() {
             backup_file(&pyproject)?;
             let old = read_file_safe(&pyproject)?;
@@ -205,7 +206,7 @@ impl VersionUpdater for PythonUpdater {
             updated.push(pyproject.to_string_lossy().to_string());
         }
 
-        let setup_py = project_path.join("setup.py");
+        let setup_py = project_path.join(PYTHON_SETUP);
         if setup_py.exists() {
             backup_file(&setup_py)?;
             let old = read_file_safe(&setup_py)?;
@@ -222,8 +223,8 @@ impl VersionUpdater for PythonUpdater {
     }
 
     fn validate_project(&self, project_path: &Path) -> Result<()> {
-        let pyproject = project_path.join("pyproject.toml");
-        let setup_py = project_path.join("setup.py");
+        let pyproject = project_path.join(PYTHON_PYPROJECT);
+        let setup_py = project_path.join(PYTHON_SETUP);
         if pyproject.exists() || setup_py.exists() {
             Ok(())
         } else {
@@ -236,11 +237,11 @@ impl VersionUpdater for PythonUpdater {
     }
 
     fn get_primary_file(&self, project_path: &Path) -> Result<PathBuf> {
-        let pyproject = project_path.join("pyproject.toml");
+        let pyproject = project_path.join(PYTHON_PYPROJECT);
         if pyproject.exists() {
             Ok(pyproject)
         } else {
-            let setup_py = project_path.join("setup.py");
+            let setup_py = project_path.join(PYTHON_SETUP);
             if setup_py.exists() {
                 Ok(setup_py)
             } else {
@@ -250,12 +251,12 @@ impl VersionUpdater for PythonUpdater {
     }
 
     fn can_handle(&self, project_path: &Path) -> bool {
-        project_path.join("pyproject.toml").exists() || project_path.join("setup.py").exists()
+        project_path.join(PYTHON_PYPROJECT).exists() || project_path.join(PYTHON_SETUP).exists()
     }
 
     fn preview_changes(&self, project_path: &Path, new_version: &str) -> Result<Vec<VersionChange>> {
         let mut changes = Vec::new();
-        let pyproject = project_path.join("pyproject.toml");
+        let pyproject = project_path.join(PYTHON_PYPROJECT);
         if pyproject.exists() {
             let old = read_file_safe(&pyproject)?;
             let new_content = self.update_pyproject_content(&old, new_version)?;
@@ -286,7 +287,7 @@ mod tests {
             "[project]\nname = \"test\"\nversion = \"{}\"\n",
             version
         );
-        fs::write(dir.join("pyproject.toml"), content)?;
+        fs::write(dir.join(PYTHON_PYPROJECT), content)?;
         Ok(())
     }
 
@@ -295,7 +296,7 @@ mod tests {
             "from setuptools import setup\nsetup(name=\"test\", version=\"{}\")\n",
             version
         );
-        fs::write(dir.join("setup.py"), content)?;
+        fs::write(dir.join(PYTHON_SETUP), content)?;
         Ok(())
     }
 
@@ -329,7 +330,7 @@ mod tests {
 
         let updated = PythonUpdater::new().update_version(path, "0.2.0")?;
         assert_eq!(updated.len(), 1);
-        let content = fs::read_to_string(path.join("pyproject.toml"))?;
+        let content = fs::read_to_string(path.join(PYTHON_PYPROJECT))?;
         assert!(content.contains("version = \"0.2.0\""));
         Ok(())
     }

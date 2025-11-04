@@ -2,6 +2,7 @@ use anyhow::{anyhow, Result};
 use std::path::{Path, PathBuf};
 
 use super::traits::{VersionUpdater, VersionChange};
+use crate::constants::manifests::GO_MOD;
 use crate::utils::files::{read_file_safe, write_file_safe, backup_file};
 
 /// Go Modules version updater
@@ -217,7 +218,7 @@ impl VersionUpdater for GoUpdater {
     }
 
     fn validate_project(&self, project_path: &Path) -> Result<()> {
-        let go_mod = project_path.join("go.mod");
+        let go_mod = project_path.join(GO_MOD);
         if !go_mod.exists() {
             return Err(anyhow!("go.mod not found. Not a valid Go module project."));
         }
@@ -230,7 +231,7 @@ impl VersionUpdater for GoUpdater {
 
     fn get_primary_file(&self, project_path: &Path) -> Result<PathBuf> {
         // Primary file for detection is go.mod
-        let go_mod = project_path.join("go.mod");
+        let go_mod = project_path.join(GO_MOD);
         if go_mod.exists() {
             Ok(go_mod)
         } else {
@@ -239,7 +240,7 @@ impl VersionUpdater for GoUpdater {
     }
 
     fn can_handle(&self, project_path: &Path) -> bool {
-        project_path.join("go.mod").exists()
+        project_path.join(GO_MOD).exists()
     }
 
     fn preview_changes(&self, project_path: &Path, new_version: &str) -> Result<Vec<VersionChange>> {
@@ -282,7 +283,7 @@ mod tests {
         let project_path = temp_dir.path();
 
         // Arrange: Create go.mod
-        fs::write(project_path.join("go.mod"), "module github.com/user/project\n\ngo 1.21\n").unwrap();
+        fs::write(project_path.join(GO_MOD), "module github.com/user/project\n\ngo 1.21\n").unwrap();
 
         // Act
         let updater = GoUpdater::new();
