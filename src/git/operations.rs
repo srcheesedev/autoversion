@@ -32,11 +32,16 @@ pub fn create_tag_in(project_path: &std::path::Path, tag_name: &str, version: &s
 
 /// Commit changes with a version bump message
 pub fn commit_version_changes(files: &[String], version: &str) -> Result<()> {
-    commit_version_changes_in(std::path::Path::new("."), files, version)
+    commit_version_changes_in(std::path::Path::new("."), files, version, None)
 }
 
-/// Commit version changes in a specific project path
-pub fn commit_version_changes_in(project_path: &std::path::Path, files: &[String], version: &str) -> Result<()> {
+/// Commit version changes in a specific project path with optional custom message
+pub fn commit_version_changes_in(
+    project_path: &std::path::Path,
+    files: &[String],
+    version: &str,
+    custom_message: Option<&str>,
+) -> Result<()> {
     let repo = Repository::open(project_path)
         .map_err(|e| anyhow!("Failed to open git repository at {}: {}", project_path.display(), e))?;
 
@@ -44,7 +49,15 @@ pub fn commit_version_changes_in(project_path: &std::path::Path, files: &[String
     
     // Add specified files to the index
     for file_path in files {
-        index.add_path(Path::new(file_path))?;
+        let path = Path::new(file_path);
+        // If path is absolute, make it relative to project_path
+        let relative_path = if path.is_absolute() {
+            path.strip_prefix(project_path)
+                .unwrap_or(path)
+        } else {
+            path
+        };
+        index.add_path(relative_path)?;
     }
     index.write()?;
 
@@ -59,7 +72,11 @@ pub fn commit_version_changes_in(project_path: &std::path::Path, files: &[String
     let signature = get_git_signature(&repo)?;
 
     // Commit message
-    let message = format!("chore: {} {}", DEFAULT_COMMIT_MESSAGE_PREFIX, version);
+    let message = if let Some(custom) = custom_message {
+        custom.replace("{version}", version)
+    } else {
+        format!("chore: {} {}", DEFAULT_COMMIT_MESSAGE_PREFIX, version)
+    };
 
     // Create commit
     repo.commit(

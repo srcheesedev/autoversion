@@ -92,8 +92,18 @@ fn handle_git_operations(
     args: &Args,
     project_path: &Path,
     new_version: &str,
+    updated_files: &[String],
     output: &mut ActionOutput,
 ) -> Result<()> {
+    if args.commit {
+        git::operations::commit_version_changes_in(
+            project_path,
+            updated_files,
+            new_version,
+            args.commit_message.as_deref(),
+        )?;
+    }
+    
     if args.create_tag {
         let tag_name = format!("{}{}", args.tag_prefix, new_version);
         git::operations::create_tag_in(project_path, &tag_name, new_version)?;
@@ -137,7 +147,7 @@ fn execute_version_bump(args: &Args, project_path: &Path) -> Result<()> {
     if !args.dry_run {
         let updated_files = updater.update_version(project_path, &new_version)?;
         output.set_files_updated(&updated_files);
-        handle_git_operations(args, project_path, &new_version, &mut output)?;
+        handle_git_operations(args, project_path, &new_version, &updated_files, &mut output)?;
     }
     
     // Write outputs and display results
