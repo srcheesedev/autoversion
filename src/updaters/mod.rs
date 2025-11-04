@@ -5,5 +5,6 @@ pub mod maven;
 pub mod python;
 pub mod go;
 pub mod composer;
+pub mod gradle;
 pub mod generic;
 pub mod factory;

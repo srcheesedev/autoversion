@@ -53,6 +53,15 @@ pub mod manifests {
     
     /// PHP Composer lock file
     pub const PHP_COMPOSER_LOCK: &str = "composer.lock";
+    
+    /// Gradle build file (Groovy DSL)
+    pub const GRADLE_BUILD: &str = "build.gradle";
+    
+    /// Gradle build file (Kotlin DSL)
+    pub const GRADLE_BUILD_KTS: &str = "build.gradle.kts";
+    
+    /// Gradle properties file
+    pub const GRADLE_PROPERTIES: &str = "gradle.properties";
 }
 
 /// Git-related constants

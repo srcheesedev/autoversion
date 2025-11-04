@@ -9,6 +9,7 @@ use super::maven::MavenUpdater;
 use super::python::PythonUpdater;
 use super::go::GoUpdater;
 use super::composer::ComposerUpdater;
+use super::gradle::GradleUpdater;
 use super::generic::GenericUpdater;
 
 /// Factory for creating appropriate version updaters
@@ -26,6 +27,7 @@ impl UpdaterFactory {
             Technology::Python => Arc::new(PythonUpdater::new()),
             Technology::Go => Arc::new(GoUpdater::new()),
             Technology::Composer => Arc::new(ComposerUpdater::new()),
+            Technology::Gradle => Arc::new(GradleUpdater::new()),
             Technology::Generic => Arc::new(GenericUpdater::new()),
         };
         

@@ -5,7 +5,7 @@ use std::fs;
 use crate::constants::manifests::{
     NPM_PACKAGE_JSON, CARGO_TOML, MAVEN_POM, 
     PYTHON_PYPROJECT, PYTHON_SETUP, PYTHON_SETUP_CFG,
-    GO_MOD, PHP_COMPOSER
+    GO_MOD, PHP_COMPOSER, GRADLE_BUILD, GRADLE_BUILD_KTS, GRADLE_PROPERTIES
 };
 
 /// Supported technology types
@@ -17,6 +17,7 @@ pub enum Technology {
     Python,
     Go,
     Composer,
+    Gradle,
     Generic,
 }
 
@@ -29,6 +30,7 @@ impl std::fmt::Display for Technology {
             Technology::Python => write!(f, "python"),
             Technology::Go => write!(f, "go"),
             Technology::Composer => write!(f, "composer"),
+            Technology::Gradle => write!(f, "gradle"),
             Technology::Generic => write!(f, "generic"),
         }
     }
@@ -45,8 +47,9 @@ impl std::str::FromStr for Technology {
             "python" => Ok(Technology::Python),
             "go" | "golang" => Ok(Technology::Go),
             "composer" | "php" => Ok(Technology::Composer),
+            "gradle" => Ok(Technology::Gradle),
             "generic" => Ok(Technology::Generic),
-            _ => Err(anyhow!("Unsupported technology: {}. Supported: npm, cargo, maven, python, go, composer, generic", s)),
+            _ => Err(anyhow!("Unsupported technology: {}. Supported: npm, cargo, maven, python, go, composer, gradle, generic", s)),
         }
     }
 }
@@ -108,6 +111,11 @@ impl TechnologyDetector {
                     priority: 80,
                 },
                 DetectionPattern {
+                    technology: Technology::Gradle,
+                    files: vec![GRADLE_BUILD, GRADLE_BUILD_KTS, GRADLE_PROPERTIES],
+                    priority: 80,
+                },
+                DetectionPattern {
                     technology: Technology::Generic,
                     files: vec!["VERSION", "version.txt", ".version"],
                     priority: 10, // Lowest priority - fallback
@@ -122,7 +130,7 @@ impl TechnologyDetector {
         
         if results.is_empty() {
             return Err(anyhow!(
-                "No supported technology detected in {}. Supported: npm (package.json), cargo (Cargo.toml), maven (pom.xml), python (pyproject.toml), go (go.mod), composer (composer.json), generic (VERSION)",
+                "No supported technology detected in {}. Supported: npm (package.json), cargo (Cargo.toml), maven (pom.xml), python (pyproject.toml), go (go.mod), composer (composer.json), gradle (build.gradle), generic (VERSION)",
                 project_path.display()
             ));
         }
@@ -290,6 +298,13 @@ impl TechnologyDetector {
                 // Just validate it's valid JSON
                 if !content.contains("{") {
                     return Err(anyhow!("composer.json is not valid JSON"));
+                }
+            }
+            Technology::Gradle => {
+                // Gradle files should contain version declarations
+                // Could be build.gradle, build.gradle.kts, or gradle.properties
+                if !content.contains("version") {
+                    return Err(anyhow!("Gradle file does not contain version declaration"));
                 }
             }
             Technology::Generic => {

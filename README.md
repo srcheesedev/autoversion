@@ -18,6 +18,7 @@ Universal semantic versioning automation for any technology stack. Built in Rust
 | **NPM** | `package.json`, `package-lock.json` | ✅ Ready |
 | **Cargo** | `Cargo.toml`, `Cargo.lock` | ✅ Ready |
 | **Maven** | `pom.xml` | ✅ Ready |
+| **Gradle** | `build.gradle`, `build.gradle.kts`, `gradle.properties` | ✅ Ready |
 | **Python** | `pyproject.toml`, `setup.py` | ✅ Ready |
 | **Go** | `go.mod`, `VERSION` (optional) | ✅ Ready |
 | **PHP/Composer** | `composer.json`, `composer.lock` | ✅ Ready |
