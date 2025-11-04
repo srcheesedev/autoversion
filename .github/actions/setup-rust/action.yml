@@ -1,0 +1,22 @@
+name: 'Setup Rust'
+description: 'Install Rust toolchain with caching'
+
+inputs:
+  target:
+    description: 'Rust target triple'
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ inputs.target }}
+    
+    - name: Cache Rust dependencies
+      uses: Swatinem/rust-cache@v2
+      with:
+        shared-key: ${{ runner.os }}-${{ inputs.target }}
+        save-if: ${{ github.ref == 'refs/heads/develop' }}

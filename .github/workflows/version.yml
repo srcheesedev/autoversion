@@ -1,0 +1,62 @@
+name: Auto Version
+
+on:
+  workflow_call:
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    name: Bump Version
+    runs-on: ubuntu-22.04
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      
+      # Download the Linux binary built in previous job
+      - name: Download autoversion binary
+        uses: actions/download-artifact@v4
+        with:
+          name: autoversion-linux-x86_64
+      
+      # Extract binary from archive
+      - name: Extract binary
+        run: |
+          tar -xzf autoversion-linux-x86_64.tar.gz
+          chmod +x autoversion
+      
+      # Run autoversion to bump version
+      - name: Run autoversion
+        id: version
+        run: |
+          # Extract bump type from commit message
+          BUMP_TYPE="patch"
+          if echo "${{ github.event.head_commit.message }}" | grep -q '\[release:major\]'; then
+            BUMP_TYPE="major"
+          elif echo "${{ github.event.head_commit.message }}" | grep -q '\[release:minor\]'; then
+            BUMP_TYPE="minor"
+          fi
+          
+          echo "📦 Bumping version ($BUMP_TYPE)"
+          ./autoversion -b $BUMP_TYPE --create-tag --commit
+          
+          # Extract new version
+          NEW_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "✅ New version: $NEW_VERSION"
+      
+      # Push version commit and tag (skip CI to prevent infinite loop)
+      - name: Push changes
+        run: |
+          git push origin develop
+          git push origin ${{ steps.version.outputs.tag }}

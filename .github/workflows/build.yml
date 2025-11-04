@@ -1,0 +1,82 @@
+name: Build
+
+on:
+  workflow_call:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-musl
+            artifact: autoversion-linux-x86_64
+            binary: autoversion
+          - name: macOS x64
+            os: macos-13
+            target: x86_64-apple-darwin
+            artifact: autoversion-macos-x86_64
+            binary: autoversion
+          - name: macOS ARM
+            os: macos-14
+            target: aarch64-apple-darwin
+            artifact: autoversion-macos-aarch64
+            binary: autoversion
+          - name: Windows x64
+            os: windows-2022
+            target: x86_64-pc-windows-msvc
+            artifact: autoversion-windows-x86_64
+            binary: autoversion.exe
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: ./.github/actions/setup-rust
+        with:
+          target: ${{ matrix.target }}
+      
+      - name: Install musl tools (Linux)
+        if: matrix.os == 'ubuntu-22.04'
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      
+      - name: Build release
+        run: cargo build --release --target ${{ matrix.target }}
+      
+      # Compress binary with UPX
+      - name: Compress binary
+        if: runner.os != 'Windows'
+        uses: crazy-max/ghaction-upx@v3
+        with:
+          version: latest
+          files: target/${{ matrix.target }}/release/${{ matrix.binary }}
+          args: --best --lzma
+      
+      # Create archive - using marketplace action
+      - name: Create archive
+        uses: thedoctor0/zip-release@0.7.6
+        with:
+          type: ${{ runner.os == 'Windows' && 'zip' || 'tar' }}
+          filename: ${{ matrix.artifact }}.${{ runner.os == 'Windows' && 'zip' || 'tar.gz' }}
+          directory: target/${{ matrix.target }}/release
+          path: ${{ matrix.binary }}
+      
+      # Generate checksum
+      - name: Generate checksum
+        shell: bash
+        run: |
+          cd target/${{ matrix.target }}/release
+          EXT=${{ runner.os == 'Windows' && 'zip' || 'tar.gz' }}
+          sha256sum ${{ matrix.artifact }}.$EXT > ${{ matrix.artifact }}.$EXT.sha256
+      
+      # Upload artifact - using official action
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: target/${{ matrix.target }}/release/${{ matrix.artifact }}.*

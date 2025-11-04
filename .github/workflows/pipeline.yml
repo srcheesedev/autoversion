@@ -1,0 +1,32 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [develop]
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  # Stage 1: Quality checks and tests
+  test:
+    uses: ./.github/workflows/test.yml
+    
+  # Stage 2: Build release binaries
+  build:
+    needs: test
+    uses: ./.github/workflows/build.yml
+  
+  # Stage 3: Auto-version (only on [release] commits)
+  version:
+    needs: build
+    if: github.ref == 'refs/heads/develop' && contains(github.event.head_commit.message, '[release]')
+    uses: ./.github/workflows/version.yml
+    secrets: inherit
+  
+  # Stage 4: Create GitHub release (on tags)
+  release:
+    needs: [build, version]
+    if: always() && needs.build.result == 'success' && (needs.version.result == 'success' || startsWith(github.ref, 'refs/tags/v'))
+    uses: ./.github/workflows/release.yml
