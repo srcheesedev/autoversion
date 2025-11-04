@@ -4,6 +4,7 @@ use anyhow::Result;
 use clap::Parser;
 
 mod cli;
+mod constants;
 mod core;
 mod git;
 mod updaters;

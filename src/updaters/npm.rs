@@ -3,6 +3,7 @@ use serde_json::Value;
 use std::path::{Path, PathBuf};
 
 use super::traits::{VersionUpdater, VersionChange};
+use crate::constants::manifests::{NPM_PACKAGE_JSON, NPM_PACKAGE_LOCK};
 use crate::utils::files::{backup_file, read_file_safe, write_file_safe};
 
 /// NPM/Node.js package version updater
@@ -104,7 +105,7 @@ impl NpmUpdater {
         let mut files = Vec::new();
         
         // package-lock.json (NPM)
-        let package_lock = project_path.join("package-lock.json");
+        let package_lock = project_path.join(NPM_PACKAGE_LOCK);
         if package_lock.exists() && package_lock.is_file() {
             files.push(package_lock);
         }
@@ -156,7 +157,7 @@ impl Default for NpmUpdater {
 
 impl VersionUpdater for NpmUpdater {
     fn get_current_version(&self, project_path: &Path) -> Result<String> {
-        let package_json_path = project_path.join("package.json");
+        let package_json_path = project_path.join(NPM_PACKAGE_JSON);
         let content = read_file_safe(&package_json_path)?;
 
         let package_json = self.parse_package_json(&content)?;
@@ -169,7 +170,7 @@ impl VersionUpdater for NpmUpdater {
     }
 
     fn update_version(&self, project_path: &Path, new_version: &str) -> Result<Vec<String>> {
-        let package_json_path = project_path.join("package.json");
+        let package_json_path = project_path.join(NPM_PACKAGE_JSON);
         let mut updated_files = Vec::new();
 
         // Backup original file
@@ -184,7 +185,7 @@ impl VersionUpdater for NpmUpdater {
         // Update related files
         let related_files = self.find_related_files(project_path);
         for file_path in related_files {
-            if file_path.file_name().unwrap() == "package-lock.json" {
+            if file_path.file_name().unwrap() == NPM_PACKAGE_LOCK {
                 backup_file(&file_path)?;
                 self.update_package_lock(&file_path, new_version)?;
                 updated_files.push(file_path.to_string_lossy().to_string());
@@ -195,7 +196,7 @@ impl VersionUpdater for NpmUpdater {
     }
 
     fn validate_project(&self, project_path: &Path) -> Result<()> {
-        let package_json_path = project_path.join("package.json");
+        let package_json_path = project_path.join(NPM_PACKAGE_JSON);
         
         if !package_json_path.exists() {
             return Err(anyhow!("package.json not found in {}", project_path.display()));
@@ -216,7 +217,7 @@ impl VersionUpdater for NpmUpdater {
     }
 
     fn get_primary_file(&self, project_path: &Path) -> Result<PathBuf> {
-        let package_json_path = project_path.join("package.json");
+        let package_json_path = project_path.join(NPM_PACKAGE_JSON);
         if package_json_path.exists() {
             Ok(package_json_path)
         } else {
@@ -225,14 +226,14 @@ impl VersionUpdater for NpmUpdater {
     }
 
     fn can_handle(&self, project_path: &Path) -> bool {
-        project_path.join("package.json").exists()
+        project_path.join(NPM_PACKAGE_JSON).exists()
     }
 
     fn preview_changes(&self, project_path: &Path, new_version: &str) -> Result<Vec<VersionChange>> {
         let mut changes = Vec::new();
         
         // Preview package.json changes
-        let package_json_path = project_path.join("package.json");
+        let package_json_path = project_path.join(NPM_PACKAGE_JSON);
         if package_json_path.exists() {
             let old_content = read_file_safe(&package_json_path)?;
             let new_content = self.update_package_json_content(&old_content, new_version)?;
@@ -294,7 +295,7 @@ mod tests {
 }}"#,
             version
         );
-        fs::write(dir.join("package.json"), content)?;
+        fs::write(dir.join(NPM_PACKAGE_JSON), content)?;
         Ok(())
     }
 
@@ -317,7 +318,7 @@ mod tests {
 }}"#,
             version, version
         );
-        fs::write(dir.join("package-lock.json"), content)?;
+        fs::write(dir.join(NPM_PACKAGE_LOCK), content)?;
         Ok(())
     }
 

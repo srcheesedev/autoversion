@@ -2,6 +2,7 @@ use anyhow::{anyhow, Result};
 use std::path::{Path, PathBuf};
 
 use super::traits::{VersionUpdater, VersionChange};
+use crate::constants::manifests::CARGO_TOML;
 use crate::utils::files::{backup_file, read_file_safe, write_file_safe};
 use toml::Value as TomlValue;
 
@@ -67,7 +68,7 @@ impl Default for CargoUpdater {
 
 impl VersionUpdater for CargoUpdater {
     fn get_current_version(&self, project_path: &Path) -> Result<String> {
-        let cargo_toml = project_path.join("Cargo.toml");
+        let cargo_toml = project_path.join(CARGO_TOML);
         let content = read_file_safe(&cargo_toml)?;
 
         let value = self.parse_cargo_toml(&content)?;
@@ -83,7 +84,7 @@ impl VersionUpdater for CargoUpdater {
     }
 
     fn update_version(&self, project_path: &Path, new_version: &str) -> Result<Vec<String>> {
-        let cargo_toml = project_path.join("Cargo.toml");
+        let cargo_toml = project_path.join(CARGO_TOML);
         backup_file(&cargo_toml)?;
 
         let old_content = read_file_safe(&cargo_toml)?;
@@ -94,7 +95,7 @@ impl VersionUpdater for CargoUpdater {
     }
 
     fn validate_project(&self, project_path: &Path) -> Result<()> {
-        let cargo_toml = project_path.join("Cargo.toml");
+        let cargo_toml = project_path.join(CARGO_TOML);
         if cargo_toml.exists() {
             Ok(())
         } else {
@@ -107,7 +108,7 @@ impl VersionUpdater for CargoUpdater {
     }
 
     fn get_primary_file(&self, project_path: &Path) -> Result<PathBuf> {
-        let cargo_toml = project_path.join("Cargo.toml");
+        let cargo_toml = project_path.join(CARGO_TOML);
         if cargo_toml.exists() {
             Ok(cargo_toml)
         } else {
@@ -116,11 +117,11 @@ impl VersionUpdater for CargoUpdater {
     }
 
     fn can_handle(&self, project_path: &Path) -> bool {
-        project_path.join("Cargo.toml").exists()
+        project_path.join(CARGO_TOML).exists()
     }
 
     fn preview_changes(&self, project_path: &Path, new_version: &str) -> Result<Vec<VersionChange>> {
-        let cargo_toml = project_path.join("Cargo.toml");
+        let cargo_toml = project_path.join(CARGO_TOML);
         let mut changes = Vec::new();
         if cargo_toml.exists() {
             let old_content = read_file_safe(&cargo_toml)?;
@@ -152,7 +153,7 @@ mod tests {
             "[package]\nname = \"test-package\"\nversion = \"{}\"\n\n[dependencies]\n",
             version
         );
-        fs::write(dir.join("Cargo.toml"), content)?;
+        fs::write(dir.join(CARGO_TOML), content)?;
         Ok(())
     }
 
@@ -178,7 +179,7 @@ mod tests {
         let updated = updater.update_version(path, "0.2.0")?;
         assert_eq!(updated.len(), 1);
 
-        let content = fs::read_to_string(path.join("Cargo.toml"))?;
+        let content = fs::read_to_string(path.join(CARGO_TOML))?;
         assert!(content.contains("version = \"0.2.0\""));
         Ok(())
     }

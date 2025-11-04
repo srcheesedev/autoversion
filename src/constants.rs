@@ -41,6 +41,18 @@ pub mod manifests {
     
     /// Python setuptools manifest
     pub const PYTHON_SETUP: &str = "setup.py";
+    
+    /// Python setup config file
+    pub const PYTHON_SETUP_CFG: &str = "setup.cfg";
+    
+    /// Go modules file
+    pub const GO_MOD: &str = "go.mod";
+    
+    /// PHP Composer manifest
+    pub const PHP_COMPOSER: &str = "composer.json";
+    
+    /// PHP Composer lock file
+    pub const PHP_COMPOSER_LOCK: &str = "composer.lock";
 }
 
 /// Git-related constants

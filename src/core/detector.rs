@@ -2,6 +2,12 @@ use anyhow::{anyhow, Result};
 use std::path::{Path, PathBuf};
 use std::fs;
 
+use crate::constants::manifests::{
+    NPM_PACKAGE_JSON, CARGO_TOML, MAVEN_POM, 
+    PYTHON_PYPROJECT, PYTHON_SETUP, PYTHON_SETUP_CFG,
+    GO_MOD, PHP_COMPOSER
+};
+
 /// Supported technology types
 #[derive(Debug, Clone, PartialEq)]
 pub enum Technology {
@@ -73,32 +79,32 @@ impl TechnologyDetector {
                 // Order by priority (higher priority first)
                 DetectionPattern {
                     technology: Technology::Npm,
-                    files: vec!["package.json"],
+                    files: vec![NPM_PACKAGE_JSON],
                     priority: 90,
                 },
                 DetectionPattern {
                     technology: Technology::Cargo,
-                    files: vec!["Cargo.toml"],
+                    files: vec![CARGO_TOML],
                     priority: 85,
                 },
                 DetectionPattern {
                     technology: Technology::Maven,
-                    files: vec!["pom.xml"],
+                    files: vec![MAVEN_POM],
                     priority: 80,
                 },
                 DetectionPattern {
                     technology: Technology::Python,
-                    files: vec!["pyproject.toml", "setup.py", "setup.cfg"],
+                    files: vec![PYTHON_PYPROJECT, PYTHON_SETUP, PYTHON_SETUP_CFG],
                     priority: 75,
                 },
                 DetectionPattern {
                     technology: Technology::Go,
-                    files: vec!["go.mod"],
+                    files: vec![GO_MOD],
                     priority: 85,
                 },
                 DetectionPattern {
                     technology: Technology::Composer,
-                    files: vec!["composer.json"],
+                    files: vec![PHP_COMPOSER],
                     priority: 80,
                 },
                 DetectionPattern {
