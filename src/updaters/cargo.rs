@@ -213,4 +213,63 @@ mod tests {
     fn test_technology_name() {
         assert_eq!(CargoUpdater::new().technology_name(), "cargo");
     }
+
+    #[test]
+    fn test_dependency_versions_not_changed() -> anyhow::Result<()> {
+        // TDD: Verify that only [package].version is updated, not dependency versions
+        let tmp = TempDir::new()?;
+        let path = tmp.path();
+        
+        // Create a Cargo.toml with multiple version fields
+        let content = r#"[package]
+name = "test-package"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+tempfile = "3.0"
+
+[[bin]]
+name = "test-bin"
+path = "src/main.rs"
+"#;
+        fs::write(path.join(CARGO_TOML), content)?;
+
+        let updater = CargoUpdater::new();
+        
+        // Update version
+        updater.update_version(path, "0.2.0")?;
+        
+        // Read updated content
+        let updated_content = fs::read_to_string(path.join(CARGO_TOML))?;
+        
+        // Parse to verify structure
+        let parsed: TomlValue = updated_content.parse()?;
+        
+        // Assert package version changed
+        assert_eq!(
+            parsed["package"]["version"].as_str().unwrap(),
+            "0.2.0"
+        );
+        
+        // Assert dependency versions unchanged
+        assert_eq!(
+            parsed["dependencies"]["anyhow"].as_str().unwrap(),
+            "1.0"
+        );
+        assert_eq!(
+            parsed["dependencies"]["serde"]["version"].as_str().unwrap(),
+            "1.0"
+        );
+        assert_eq!(
+            parsed["dev-dependencies"]["tempfile"].as_str().unwrap(),
+            "3.0"
+        );
+        
+        Ok(())
+    }
 }

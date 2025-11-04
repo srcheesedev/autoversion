@@ -336,23 +336,24 @@ mod tests {
 
     #[test]
     fn test_github_actions_detection() {
-        let _lock = ENV_LOCK.get_or_init(|| Mutex::new(())).lock().unwrap();
+        let _lock = ENV_LOCK.get_or_init(|| Mutex::new(())).lock().unwrap_or_else(|e| e.into_inner());
 
         // Save previous value and restore at the end
         let prev = std::env::var("GITHUB_ACTIONS").ok();
-        std::env::set_var("GITHUB_ACTIONS", "true");
-
-        let args = Args::parse_from(&["autoversion"]);
+        
         // Test environment variable detection
+        std::env::set_var("GITHUB_ACTIONS", "true");
+        let args = Args::parse_from(&["autoversion"]);
         assert!(args.is_github_actions());
 
+        // Clean up
         if let Some(val) = prev {
             std::env::set_var("GITHUB_ACTIONS", val);
         } else {
             std::env::remove_var("GITHUB_ACTIONS");
         }
 
-        // Test explicit format
+        // Test explicit format (without environment variable)
         let mut args = Args::parse_from(&["autoversion"]);
         args.output_format = "github-actions".to_string();
         assert!(args.is_github_actions());
@@ -360,9 +361,9 @@ mod tests {
 
     #[test]
     fn test_effective_output_format() {
-        let _lock = ENV_LOCK.get_or_init(|| Mutex::new(())).lock().unwrap();
+        let _lock = ENV_LOCK.get_or_init(|| Mutex::new(())).lock().unwrap_or_else(|e| e.into_inner());
 
-        // Save previous value and restore at the end
+        // Save previous value
         let prev = std::env::var("GITHUB_ACTIONS").ok();
 
         // Test GitHub Actions environment detection
@@ -375,15 +376,20 @@ mod tests {
         let args = Args::parse_from(&["autoversion", "--output", "json"]);
         assert_eq!(args.get_effective_output_format(), "json");
 
-        // Restore previous value
-        if let Some(val) = prev {
-            std::env::set_var("GITHUB_ACTIONS", val);
-        } else {
-            std::env::remove_var("GITHUB_ACTIONS");
-        }
+        // Remove GitHub Actions env var for remaining tests
+        std::env::remove_var("GITHUB_ACTIONS");
 
         // Test normal format without GitHub Actions
         let args = Args::parse_from(&["autoversion", "--output", "json"]);
         assert_eq!(args.get_effective_output_format(), "json");
+
+        // Test default format without GitHub Actions
+        let args = Args::parse_from(&["autoversion"]);
+        assert_eq!(args.get_effective_output_format(), "human");
+
+        // Restore previous value
+        if let Some(val) = prev {
+            std::env::set_var("GITHUB_ACTIONS", val);
+        }
     }
 }

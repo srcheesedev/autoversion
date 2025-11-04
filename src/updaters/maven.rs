@@ -312,4 +312,70 @@ mod tests {
         
         Ok(())
     }
+
+    #[test]
+    fn test_dependency_versions_not_changed() -> anyhow::Result<()> {
+        // TDD: Verify that only project version is updated, not dependency versions
+        let tmp = TempDir::new()?;
+        let path = tmp.path();
+        
+        // Create a POM with project version and dependencies with versions
+        let pom_content = r#"<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.example</groupId>
+    <artifactId>test-project</artifactId>
+    <version>1.0.0</version>
+    
+    <dependencies>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>5.0.0</version>
+        </dependency>
+    </dependencies>
+    
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+"#;
+        fs::write(path.join(MAVEN_POM), pom_content)?;
+        
+        let updater = MavenUpdater::new();
+        
+        // Verify current version is extracted correctly
+        let current = updater.get_current_version(path)?;
+        assert_eq!(current, "1.0.0");
+        
+        // Update version
+        updater.update_version(path, "2.0.0")?;
+        
+        // Read updated content
+        let updated_content = fs::read_to_string(path.join(MAVEN_POM))?;
+        
+        // Assert project version changed
+        assert!(updated_content.contains("<artifactId>test-project</artifactId>\n    <version>2.0.0</version>"));
+        
+        // Assert dependency versions unchanged
+        assert!(updated_content.contains("<artifactId>junit</artifactId>\n            <version>4.13.2</version>"));
+        assert!(updated_content.contains("<artifactId>mockito-core</artifactId>\n            <version>5.0.0</version>"));
+        assert!(updated_content.contains("<artifactId>maven-compiler-plugin</artifactId>\n                <version>3.11.0</version>"));
+        
+        Ok(())
+    }
 }

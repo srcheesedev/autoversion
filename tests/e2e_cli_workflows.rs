@@ -1,6 +1,20 @@
-use assert_cmd::Command;
+use assert_cmd::prelude::*;
+use std::process::Command;
 use std::fs;
+use std::env;
 use tempfile::TempDir;
+
+/// Helper function to get the autoversion binary path
+fn get_autoversion_bin() -> std::path::PathBuf {
+    // Get the target directory and construct the binary path
+    let mut path = env::current_exe().unwrap();
+    path.pop(); // Remove test executable name
+    if path.ends_with("deps") {
+        path.pop(); // Remove deps directory
+    }
+    path.push("autoversion");
+    path
+}
 
 /// Helper to create a test NPM project
 fn create_npm_project(dir: &TempDir) -> std::path::PathBuf {
@@ -95,7 +109,7 @@ fn test_e2e_npm_patch_bump_dry_run() {
     let temp = TempDir::new().unwrap();
     let project_path = create_npm_project(&temp);
 
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     cmd.args(["-p", project_path.to_str().unwrap(), "-b", "patch", "-d"])
         .assert()
         .success();
@@ -110,7 +124,7 @@ fn test_e2e_npm_patch_bump_actual() {
     let temp = TempDir::new().unwrap();
     let project_path = create_npm_project(&temp);
 
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     cmd.args(["-p", project_path.to_str().unwrap(), "-b", "patch"])
         .assert()
         .success();
@@ -125,7 +139,7 @@ fn test_e2e_npm_minor_bump() {
     let temp = TempDir::new().unwrap();
     let project_path = create_npm_project(&temp);
 
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     cmd.args(["-p", project_path.to_str().unwrap(), "-b", "minor"])
         .assert()
         .success();
@@ -139,7 +153,7 @@ fn test_e2e_npm_major_bump() {
     let temp = TempDir::new().unwrap();
     let project_path = create_npm_project(&temp);
 
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     cmd.args(["-p", project_path.to_str().unwrap(), "-b", "major"])
         .assert()
         .success();
@@ -153,7 +167,7 @@ fn test_e2e_cargo_patch_bump() {
     let temp = TempDir::new().unwrap();
     let project_path = create_cargo_project(&temp);
 
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     cmd.args(["-p", project_path.to_str().unwrap(), "-b", "patch", "-t", "cargo"])
         .assert()
         .success();
@@ -167,7 +181,7 @@ fn test_e2e_maven_minor_bump() {
     let temp = TempDir::new().unwrap();
     let project_path = create_maven_project(&temp);
 
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     cmd.args(["-p", project_path.to_str().unwrap(), "-b", "minor", "-t", "maven"])
         .assert()
         .success();
@@ -181,7 +195,7 @@ fn test_e2e_generic_major_bump() {
     let temp = TempDir::new().unwrap();
     let project_path = create_generic_project(&temp);
 
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     cmd.args(["-p", project_path.to_str().unwrap(), "-b", "major", "-t", "generic"])
         .assert()
         .success();
@@ -196,7 +210,7 @@ fn test_e2e_auto_detect_npm() {
     let project_path = create_npm_project(&temp);
 
     // Don't specify technology, let it auto-detect
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     cmd.args(["-p", project_path.to_str().unwrap(), "-b", "patch", "-t", "auto"])
         .assert()
         .success();
@@ -210,7 +224,7 @@ fn test_e2e_auto_detect_cargo() {
     let temp = TempDir::new().unwrap();
     let project_path = create_cargo_project(&temp);
 
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     cmd.args(["-p", project_path.to_str().unwrap(), "-b", "patch", "-t", "auto"])
         .assert()
         .success();
@@ -224,7 +238,7 @@ fn test_e2e_verbose_output() {
     let temp = TempDir::new().unwrap();
     let project_path = create_npm_project(&temp);
 
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     cmd.args(["-p", project_path.to_str().unwrap(), "-b", "patch", "-v"])
         .assert()
         .success();
@@ -238,7 +252,7 @@ fn test_e2e_git_tag_creation() {
     let project_path = create_npm_project(&temp);
     init_git_repo(&project_path);
 
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     cmd.args(["-p", project_path.to_str().unwrap(), "-b", "patch", "-c"])
         .assert()
         .success();
@@ -260,7 +274,7 @@ fn test_e2e_git_commit_creation() {
     let project_path = create_npm_project(&temp);
     init_git_repo(&project_path);
 
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     cmd.args(["-p", project_path.to_str().unwrap(), "-b", "patch", "-C"])
         .assert()
         .success();
@@ -283,7 +297,7 @@ fn test_e2e_git_tag_and_commit() {
     let project_path = create_npm_project(&temp);
     init_git_repo(&project_path);
 
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     cmd.args(["-p", project_path.to_str().unwrap(), "-b", "patch", "-c", "-C"])
         .assert()
         .success();
@@ -314,7 +328,7 @@ fn test_e2e_custom_commit_message() {
     let project_path = create_npm_project(&temp);
     init_git_repo(&project_path);
 
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     cmd.args([
         "-p", project_path.to_str().unwrap(),
         "-b", "patch",
@@ -338,7 +352,7 @@ fn test_e2e_custom_commit_message() {
 fn test_e2e_error_no_manifest_file() {
     let temp = TempDir::new().unwrap();
     
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     cmd.args(["-p", temp.path().to_str().unwrap(), "-b", "patch"])
         .assert()
         .failure();
@@ -349,7 +363,7 @@ fn test_e2e_error_invalid_bump_type() {
     let temp = TempDir::new().unwrap();
     let project_path = create_npm_project(&temp);
 
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     cmd.args(["-p", project_path.to_str().unwrap(), "-b", "invalid"])
         .assert()
         .failure();
@@ -357,7 +371,7 @@ fn test_e2e_error_invalid_bump_type() {
 
 #[test]
 fn test_e2e_error_invalid_path() {
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     cmd.args(["-p", "/nonexistent/path", "-b", "patch"])
         .assert()
         .failure();
@@ -368,7 +382,7 @@ fn test_e2e_backup_file_creation() {
     let temp = TempDir::new().unwrap();
     let project_path = create_npm_project(&temp);
 
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     cmd.args(["-p", project_path.to_str().unwrap(), "-b", "patch"])
         .assert()
         .success();
@@ -387,7 +401,7 @@ fn test_e2e_multiple_sequential_bumps() {
     let project_path = create_npm_project(&temp);
 
     // First bump: patch
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     cmd.args(["-p", project_path.to_str().unwrap(), "-b", "patch"])
         .assert()
         .success();
@@ -396,7 +410,7 @@ fn test_e2e_multiple_sequential_bumps() {
     assert!(content.contains("1.0.1"));
 
     // Second bump: minor
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     cmd.args(["-p", project_path.to_str().unwrap(), "-b", "minor"])
         .assert()
         .success();
@@ -405,7 +419,7 @@ fn test_e2e_multiple_sequential_bumps() {
     assert!(content.contains("1.1.0"));
 
     // Third bump: major
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     cmd.args(["-p", project_path.to_str().unwrap(), "-b", "major"])
         .assert()
         .success();
@@ -424,13 +438,13 @@ fn test_e2e_force_flag_with_uncommitted_changes() {
     fs::write(project_path.join("test.txt"), "uncommitted change").unwrap();
 
     // Try without force flag (should fail or warn)
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     cmd.args(["-p", project_path.to_str().unwrap(), "-b", "patch"])
         .assert()
         .success(); // Actually succeeds, but may warn
 
     // Try with force flag (should succeed)
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     cmd.args(["-p", project_path.to_str().unwrap(), "-b", "minor", "-f"])
         .assert()
         .success();
@@ -444,7 +458,7 @@ fn test_e2e_output_shows_version_change() {
     let temp = TempDir::new().unwrap();
     let project_path = create_npm_project(&temp);
 
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     let output = cmd.args(["-p", project_path.to_str().unwrap(), "-b", "patch"])
         .output()
         .unwrap();
@@ -456,7 +470,7 @@ fn test_e2e_output_shows_version_change() {
 
 #[test]
 fn test_e2e_help_command() {
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     cmd.arg("--help")
         .assert()
         .success();
@@ -464,7 +478,7 @@ fn test_e2e_help_command() {
 
 #[test]
 fn test_e2e_version_command() {
-    let mut cmd = Command::cargo_bin("autoversion").unwrap();
+    let mut cmd = Command::new(get_autoversion_bin());
     cmd.arg("--version")
         .assert()
         .success();
