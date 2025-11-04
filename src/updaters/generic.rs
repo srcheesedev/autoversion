@@ -2,6 +2,7 @@ use anyhow::{anyhow, Result};
 use std::path::{Path, PathBuf};
 
 use super::traits::{VersionUpdater, VersionChange};
+use crate::constants::VERSION_FILES;
 use crate::utils::files::{backup_file, read_file_safe, write_file_safe};
 
 /// Generic version file updater
@@ -162,13 +163,7 @@ pub struct GenericUpdater {
 impl GenericUpdater {
     pub fn new() -> Self {
         Self {
-            version_files: vec![
-                "VERSION",
-                "version.txt", 
-                ".version",
-                "version",
-                "VERSION.txt",
-            ],
+            version_files: VERSION_FILES.to_vec(),
         }
     }
 
