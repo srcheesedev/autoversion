@@ -10,6 +10,7 @@
 use anyhow::Result;
 use autoversion::utils::files::{backup_file, restore_from_backup};
 use std::fs::{self, File};
+#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use tempfile::TempDir;
 
@@ -74,6 +75,7 @@ fn test_invalid_utf8_content() -> Result<()> {
 
 /// Test handling of readonly files
 #[test]
+#[cfg(unix)]
 fn test_readonly_file() -> Result<()> {
     let temp = TempDir::new()?;
     let readonly_file = temp.path().join("readonly.txt");
@@ -98,6 +100,7 @@ fn test_readonly_file() -> Result<()> {
 
 /// Test attempting to write to readonly directory
 #[test]
+#[cfg(unix)]
 fn test_readonly_directory() -> Result<()> {
     let temp = TempDir::new()?;
     let readonly_dir = temp.path().join("readonly_dir");

@@ -126,20 +126,48 @@ impl ActionOutput {
                 .open(&output_file)?;
 
             // Write outputs using the new GitHub Actions format
-            // Simple values can be written directly
-            writeln!(file, "version={}", self.data.version)?;
-            writeln!(file, "previous-version={}", self.data.previous_version)?;
-            writeln!(file, "version-type={}", self.data.version_type)?;
-            writeln!(file, "technology={}", self.data.technology)?;
+            // All values must be on a single line with no special characters
+            // Use sanitized values
+            writeln!(
+                file,
+                "version={}",
+                self.data.version.replace('\n', " ").replace('\r', "")
+            )?;
+            writeln!(
+                file,
+                "previous-version={}",
+                self.data
+                    .previous_version
+                    .replace('\n', " ")
+                    .replace('\r', "")
+            )?;
+            writeln!(
+                file,
+                "version-type={}",
+                self.data.version_type.replace('\n', " ").replace('\r', "")
+            )?;
+            writeln!(
+                file,
+                "technology={}",
+                self.data.technology.replace('\n', " ").replace('\r', "")
+            )?;
             writeln!(
                 file,
                 "files-updated={}",
-                self.data.files_updated.join(",")
+                self.data
+                    .files_updated
+                    .join(",")
+                    .replace('\n', " ")
+                    .replace('\r', "")
             )?;
             writeln!(file, "tag-created={}", self.data.tag_created)?;
 
             if let Some(tag_name) = &self.data.tag_name {
-                writeln!(file, "tag-name={}", tag_name)?;
+                writeln!(
+                    file,
+                    "tag-name={}",
+                    tag_name.replace('\n', " ").replace('\r', "")
+                )?;
             }
 
             writeln!(file, "success={}", self.data.success)?;
