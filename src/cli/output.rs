@@ -127,23 +127,18 @@ impl ActionOutput {
 
             // Write outputs using simple key=value format
             // Values must be on a single line
-            // Use write! + explicit \n to ensure consistent line endings
-            write!(file, "version={}\n", self.data.version)?;
-            write!(file, "previous-version={}\n", self.data.previous_version)?;
-            write!(file, "version-type={}\n", self.data.version_type)?;
-            write!(file, "technology={}\n", self.data.technology)?;
-            write!(
-                file,
-                "files-updated={}\n",
-                self.data.files_updated.join(",")
-            )?;
-            write!(file, "tag-created={}\n", self.data.tag_created)?;
+            writeln!(file, "version={}", self.data.version)?;
+            writeln!(file, "previous-version={}", self.data.previous_version)?;
+            writeln!(file, "version-type={}", self.data.version_type)?;
+            writeln!(file, "technology={}", self.data.technology)?;
+            writeln!(file, "files-updated={}", self.data.files_updated.join(","))?;
+            writeln!(file, "tag-created={}", self.data.tag_created)?;
 
             if let Some(tag_name) = &self.data.tag_name {
-                write!(file, "tag-name={}\n", tag_name)?;
+                writeln!(file, "tag-name={}", tag_name)?;
             }
 
-            write!(file, "success={}\n", self.data.success)?;
+            writeln!(file, "success={}", self.data.success)?;
 
             // Explicitly flush to ensure all data is written
             file.flush()?;
@@ -272,8 +267,8 @@ pub fn write_github_output(key: &str, value: &str) -> Result<()> {
             .create(true)
             .append(true)
             .open(&output_file)?;
-        // Use simple key=value format with explicit \n
-        write!(file, "{}={}\n", key, value)?;
+        // Use simple key=value format
+        writeln!(file, "{}={}", key, value)?;
         file.flush()?;
     } else {
         println!("::set-output name={}::{}", key, value);
