@@ -145,6 +145,7 @@ use crate::utils::files::{backup_file, read_file_safe, write_file_safe};
 /// - No git tags found (cannot determine version)
 /// - Invalid semver in git tag
 /// - File system I/O errors
+#[derive(Default)]
 pub struct GoUpdater;
 
 impl GoUpdater {
@@ -185,13 +186,11 @@ impl VersionUpdater for GoUpdater {
     fn get_current_version(&self, project_path: &Path) -> Result<String> {
         // Strategy: Try VERSION file first, then fall back to git tags
         // In real implementation, should prefer git tags as authoritative source
-        self.read_version_file(project_path).or_else(|_| {
-            // TODO: Get version from git tags (most recent tag)
-            // For now, return error if no VERSION file
-            Err(anyhow!(
+        self.read_version_file(project_path).map_err(|_| {
+            anyhow!(
                 "No VERSION file found. Go modules use git tags for versioning. \
                              Create a VERSION file or use git tags directly."
-            ))
+            )
         })
     }
 

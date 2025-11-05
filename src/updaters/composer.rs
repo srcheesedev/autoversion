@@ -80,6 +80,7 @@ use crate::utils::files::{backup_file, read_file_safe, write_file_safe};
 /// - Invalid JSON format
 /// - Missing version field
 /// - File system I/O errors
+#[derive(Default)]
 pub struct ComposerUpdater;
 
 impl ComposerUpdater {

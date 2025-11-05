@@ -123,7 +123,7 @@ impl NpmUpdater {
     }
 
     /// Update package-lock.json version
-    fn update_package_lock(&self, file_path: &PathBuf, new_version: &str) -> Result<()> {
+    fn update_package_lock(&self, file_path: &Path, new_version: &str) -> Result<()> {
         let content = read_file_safe(file_path)?;
         let mut lock_json: Value = serde_json::from_str(&content)
             .map_err(|e| anyhow!("Failed to parse package-lock.json: {}", e))?;
@@ -216,10 +216,10 @@ impl VersionUpdater for NpmUpdater {
         let content = read_file_safe(&package_json_path)?;
         let package_json = self.parse_package_json(&content)?;
 
-        if !package_json
+        if package_json
             .get("version")
             .and_then(|v| v.as_str())
-            .is_some()
+            .is_none()
         {
             return Err(anyhow!(
                 "package.json does not contain a valid version field"

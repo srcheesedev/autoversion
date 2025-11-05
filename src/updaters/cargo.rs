@@ -29,7 +29,6 @@ use toml::Value as TomlValue;
 /// Antipatterns avoided:
 /// - Never writing to files without taking a backup (`backup_file` is used).
 /// - Avoiding regex-based parsing for TOML structures: we use the `toml` crate.
-
 pub struct CargoUpdater;
 
 impl CargoUpdater {

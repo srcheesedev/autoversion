@@ -213,8 +213,6 @@ impl CommitAnalysis {
             BumpType::Major
         } else if !self.features.is_empty() {
             BumpType::Minor
-        } else if !self.fixes.is_empty() {
-            BumpType::Patch
         } else {
             BumpType::Patch
         }

@@ -293,7 +293,7 @@ mod tests {
 
     #[test]
     fn test_default_args() {
-        let args = Args::parse_from(&["autoversion"]);
+        let args = Args::parse_from(["autoversion"]);
 
         assert_eq!(args.bump_type, "auto");
         assert_eq!(args.technology, "auto");
@@ -315,7 +315,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let path = temp_dir.path().to_str().unwrap();
 
-        let args = Args::parse_from(&[
+        let args = Args::parse_from([
             "autoversion",
             "--bump-type",
             "major",
@@ -350,7 +350,7 @@ mod tests {
 
     #[test]
     fn test_create_tag_flag() {
-        let args = Args::parse_from(&["autoversion", "--create-tag", "--tag-prefix", "v"]);
+        let args = Args::parse_from(["autoversion", "--create-tag", "--tag-prefix", "v"]);
 
         assert!(args.create_tag); // true because --create-tag was specified
         assert_eq!(args.tag_prefix, "v");
@@ -358,7 +358,7 @@ mod tests {
 
     #[test]
     fn test_validation_invalid_bump_type() {
-        let mut args = Args::parse_from(&["autoversion"]);
+        let mut args = Args::parse_from(["autoversion"]);
         args.bump_type = "invalid".to_string();
 
         assert!(args.validate().is_err());
@@ -367,7 +367,7 @@ mod tests {
 
     #[test]
     fn test_validation_invalid_technology() {
-        let mut args = Args::parse_from(&["autoversion"]);
+        let mut args = Args::parse_from(["autoversion"]);
         args.technology = "invalid".to_string();
 
         assert!(args.validate().is_err());
@@ -376,7 +376,7 @@ mod tests {
 
     #[test]
     fn test_validation_invalid_output_format() {
-        let mut args = Args::parse_from(&["autoversion"]);
+        let mut args = Args::parse_from(["autoversion"]);
         args.output_format = "invalid".to_string();
 
         assert!(args.validate().is_err());
@@ -388,7 +388,7 @@ mod tests {
 
     #[test]
     fn test_validation_nonexistent_path() {
-        let mut args = Args::parse_from(&["autoversion"]);
+        let mut args = Args::parse_from(["autoversion"]);
         args.path = PathBuf::from("/nonexistent/path");
 
         assert!(args.validate().is_err());
@@ -397,7 +397,7 @@ mod tests {
 
     #[test]
     fn test_validation_commit_message_without_commit() {
-        let mut args = Args::parse_from(&["autoversion"]);
+        let mut args = Args::parse_from(["autoversion"]);
         args.commit_message = Some("test".to_string());
         args.commit = false;
 
@@ -410,7 +410,7 @@ mod tests {
 
     #[test]
     fn test_validation_conflicting_options() {
-        let mut args = Args::parse_from(&["autoversion"]);
+        let mut args = Args::parse_from(["autoversion"]);
         args.show_info = true;
         args.analyze = true;
 
@@ -433,7 +433,7 @@ mod tests {
 
         // Test environment variable detection
         std::env::set_var("GITHUB_ACTIONS", "true");
-        let args = Args::parse_from(&["autoversion"]);
+        let args = Args::parse_from(["autoversion"]);
         assert!(args.is_github_actions());
 
         // Clean up
@@ -444,7 +444,7 @@ mod tests {
         }
 
         // Test explicit format (without environment variable)
-        let mut args = Args::parse_from(&["autoversion"]);
+        let mut args = Args::parse_from(["autoversion"]);
         args.output_format = "github-actions".to_string();
         assert!(args.is_github_actions());
     }
@@ -461,23 +461,23 @@ mod tests {
 
         // Test GitHub Actions environment detection
         std::env::set_var("GITHUB_ACTIONS", "true");
-        let args = Args::parse_from(&["autoversion"]);
+        let args = Args::parse_from(["autoversion"]);
         assert_eq!(args.get_effective_output_format(), "github-actions");
 
         // Test explicit format overrides auto-detection
         std::env::set_var("GITHUB_ACTIONS", "true");
-        let args = Args::parse_from(&["autoversion", "--output", "json"]);
+        let args = Args::parse_from(["autoversion", "--output", "json"]);
         assert_eq!(args.get_effective_output_format(), "json");
 
         // Remove GitHub Actions env var for remaining tests
         std::env::remove_var("GITHUB_ACTIONS");
 
         // Test normal format without GitHub Actions
-        let args = Args::parse_from(&["autoversion", "--output", "json"]);
+        let args = Args::parse_from(["autoversion", "--output", "json"]);
         assert_eq!(args.get_effective_output_format(), "json");
 
         // Test default format without GitHub Actions
-        let args = Args::parse_from(&["autoversion"]);
+        let args = Args::parse_from(["autoversion"]);
         assert_eq!(args.get_effective_output_format(), "human");
 
         // Restore previous value

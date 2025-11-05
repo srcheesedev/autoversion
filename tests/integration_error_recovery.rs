@@ -201,6 +201,7 @@ fn test_integration_concurrent_backup_prevention() {
 }
 
 #[test]
+#[cfg(unix)]
 fn test_integration_file_permissions_preserved() {
     use std::os::unix::fs::PermissionsExt;
 

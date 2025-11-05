@@ -5,33 +5,26 @@ use std::fs::OpenOptions;
 use std::io::Write;
 
 /// Output data structure for different formats
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct OutputData {
+    #[serde(default)]
     pub version: String,
+    #[serde(default)]
     pub previous_version: String,
+    #[serde(default)]
     pub version_type: String,
+    #[serde(default)]
     pub technology: String,
+    #[serde(default)]
     pub files_updated: Vec<String>,
+    #[serde(default)]
     pub tag_created: bool,
+    #[serde(default)]
     pub tag_name: Option<String>,
+    #[serde(default)]
     pub success: bool,
+    #[serde(default)]
     pub message: String,
-}
-
-impl Default for OutputData {
-    fn default() -> Self {
-        Self {
-            version: String::new(),
-            previous_version: String::new(),
-            version_type: String::new(),
-            technology: String::new(),
-            files_updated: Vec::new(),
-            tag_created: false,
-            tag_name: None,
-            success: false,
-            message: String::new(),
-        }
-    }
 }
 
 /// Handle different output formats for autoversion results
@@ -133,11 +126,16 @@ impl ActionOutput {
                 .open(&output_file)?;
 
             // Write outputs using the new GitHub Actions format
+            // Use multiline format for values that might contain special characters
             writeln!(file, "version={}", self.data.version)?;
             writeln!(file, "previous-version={}", self.data.previous_version)?;
             writeln!(file, "version-type={}", self.data.version_type)?;
             writeln!(file, "technology={}", self.data.technology)?;
-            writeln!(file, "files-updated={}", self.data.files_updated.join(","))?;
+            
+            // For files-updated, use JSON array to avoid delimiter issues
+            let files_json = serde_json::to_string(&self.data.files_updated)?;
+            writeln!(file, "files-updated={}", files_json)?;
+            
             writeln!(file, "tag-created={}", self.data.tag_created)?;
 
             if let Some(tag_name) = &self.data.tag_name {
@@ -412,9 +410,10 @@ mod tests {
         assert!(env::var("GITHUB_ACTIONS").is_ok());
 
         // Restore previous value
-        env::remove_var("GITHUB_ACTIONS");
         if let Some(val) = prev {
             env::set_var("GITHUB_ACTIONS", val);
+        } else {
+            env::remove_var("GITHUB_ACTIONS");
         }
     }
 }

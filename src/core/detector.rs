@@ -162,7 +162,7 @@ impl TechnologyDetector {
             }
 
             if !files_found.is_empty() {
-                let confidence = self.calculate_confidence(&pattern, &files_found);
+                let confidence = self.calculate_confidence(pattern, &files_found);
                 results.push(DetectionResult {
                     technology: pattern.technology.clone(),
                     confidence,
