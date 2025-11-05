@@ -5,24 +5,25 @@ use std::path::Path;
 pub trait VersionUpdater {
     /// Get the current version from the project
     fn get_current_version(&self, project_path: &Path) -> Result<String>;
-    
+
     /// Update the version in the project files
     fn update_version(&self, project_path: &Path, new_version: &str) -> Result<Vec<String>>;
-    
+
     /// Validate that the project structure is compatible with this updater
     fn validate_project(&self, project_path: &Path) -> Result<()>;
-    
+
     /// Get the name of the technology this updater handles
     fn technology_name(&self) -> &'static str;
-    
+
     /// Get the primary file that contains the version
     fn get_primary_file(&self, project_path: &Path) -> Result<std::path::PathBuf>;
-    
+
     /// Check if this updater can handle the project
     fn can_handle(&self, project_path: &Path) -> bool;
-    
+
     /// Preview the changes that would be made (for dry-run mode)
-    fn preview_changes(&self, project_path: &Path, new_version: &str) -> Result<Vec<VersionChange>>;
+    fn preview_changes(&self, project_path: &Path, new_version: &str)
+        -> Result<Vec<VersionChange>>;
 }
 
 /// Represents a change that will be made to a file

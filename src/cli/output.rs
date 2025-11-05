@@ -106,14 +106,13 @@ impl ActionOutput {
     /// Write outputs in the specified format
     pub fn write_outputs(&self) -> Result<()> {
         // Determine output format from environment or default
-        let format = env::var("AUTOVERSION_OUTPUT_FORMAT")
-            .unwrap_or_else(|_| {
-                if env::var("GITHUB_ACTIONS").is_ok() {
-                    "github-actions".to_string()
-                } else {
-                    "human".to_string()
-                }
-            });
+        let format = env::var("AUTOVERSION_OUTPUT_FORMAT").unwrap_or_else(|_| {
+            if env::var("GITHUB_ACTIONS").is_ok() {
+                "github-actions".to_string()
+            } else {
+                "human".to_string()
+            }
+        });
 
         match format.as_str() {
             "github-actions" => self.write_github_actions_output(),
@@ -126,7 +125,7 @@ impl ActionOutput {
     /// Write GitHub Actions format output
     fn write_github_actions_output(&self) -> Result<()> {
         let github_output = env::var("GITHUB_OUTPUT").ok();
-        
+
         if let Some(output_file) = github_output {
             let mut file = OpenOptions::new()
                 .create(true)
@@ -140,25 +139,31 @@ impl ActionOutput {
             writeln!(file, "technology={}", self.data.technology)?;
             writeln!(file, "files-updated={}", self.data.files_updated.join(","))?;
             writeln!(file, "tag-created={}", self.data.tag_created)?;
-            
+
             if let Some(tag_name) = &self.data.tag_name {
                 writeln!(file, "tag-name={}", tag_name)?;
             }
-            
+
             writeln!(file, "success={}", self.data.success)?;
         } else {
             // Fallback to old format if GITHUB_OUTPUT is not available
             println!("::set-output name=version::{}", self.data.version);
-            println!("::set-output name=previous-version::{}", self.data.previous_version);
+            println!(
+                "::set-output name=previous-version::{}",
+                self.data.previous_version
+            );
             println!("::set-output name=version-type::{}", self.data.version_type);
             println!("::set-output name=technology::{}", self.data.technology);
-            println!("::set-output name=files-updated::{}", self.data.files_updated.join(","));
+            println!(
+                "::set-output name=files-updated::{}",
+                self.data.files_updated.join(",")
+            );
             println!("::set-output name=tag-created::{}", self.data.tag_created);
-            
+
             if let Some(tag_name) = &self.data.tag_name {
                 println!("::set-output name=tag-name::{}", tag_name);
             }
-            
+
             println!("::set-output name=success::{}", self.data.success);
         }
 
@@ -173,13 +178,25 @@ impl ActionOutput {
             writeln!(file)?;
             writeln!(file, "| Field | Value |")?;
             writeln!(file, "|-------|-------|")?;
-            writeln!(file, "| Previous Version | `{}` |", self.data.previous_version)?;
+            writeln!(
+                file,
+                "| Previous Version | `{}` |",
+                self.data.previous_version
+            )?;
             writeln!(file, "| New Version | `{}` |", self.data.version)?;
             writeln!(file, "| Bump Type | `{}` |", self.data.version_type)?;
             writeln!(file, "| Technology | `{}` |", self.data.technology)?;
-            writeln!(file, "| Files Updated | {} |", self.data.files_updated.len())?;
-            writeln!(file, "| Tag Created | {} |", if self.data.tag_created { "✅" } else { "❌" })?;
-            
+            writeln!(
+                file,
+                "| Files Updated | {} |",
+                self.data.files_updated.len()
+            )?;
+            writeln!(
+                file,
+                "| Tag Created | {} |",
+                if self.data.tag_created { "✅" } else { "❌" }
+            )?;
+
             if !self.data.files_updated.is_empty() {
                 writeln!(file)?;
                 writeln!(file, "### 📁 Files Updated")?;
@@ -207,8 +224,15 @@ impl ActionOutput {
         println!("New Version:      {}", self.data.version);
         println!("Bump Type:        {}", self.data.version_type);
         println!("Technology:       {}", self.data.technology);
-        println!("Tag Created:      {}", if self.data.tag_created { "✅ Yes" } else { "❌ No" });
-        
+        println!(
+            "Tag Created:      {}",
+            if self.data.tag_created {
+                "✅ Yes"
+            } else {
+                "❌ No"
+            }
+        );
+
         if let Some(tag_name) = &self.data.tag_name {
             println!("Tag Name:         {}", tag_name);
         }
@@ -254,17 +278,25 @@ pub fn write_github_output(key: &str, value: &str) -> Result<()> {
 }
 
 /// Utility function to create GitHub Actions annotations
-pub fn create_annotation(level: &str, message: &str, file: Option<&str>, line: Option<u32>) -> Result<()> {
+pub fn create_annotation(
+    level: &str,
+    message: &str,
+    file: Option<&str>,
+    line: Option<u32>,
+) -> Result<()> {
     let mut annotation = format!("::{} ::{}", level, message);
-    
+
     if let Some(file_path) = file {
         annotation = format!("::{} file={}::{}", level, file_path, message);
-        
+
         if let Some(line_num) = line {
-            annotation = format!("::{} file={},line={}::{}", level, file_path, line_num, message);
+            annotation = format!(
+                "::{} file={},line={}::{}",
+                level, file_path, line_num, message
+            );
         }
     }
-    
+
     println!("{}", annotation);
     Ok(())
 }
@@ -278,7 +310,7 @@ mod tests {
     #[test]
     fn test_output_data_creation() {
         let mut output = ActionOutput::new();
-        
+
         output.set_version("1.2.3");
         output.set_previous_version("1.2.2");
         output.set_version_type("patch");
@@ -304,15 +336,15 @@ mod tests {
         let mut output = ActionOutput::new();
         output.set_version("1.0.0");
         output.set_technology("npm");
-        
+
         env::set_var("AUTOVERSION_OUTPUT_FORMAT", "json");
-        
+
         // This would normally print to stdout, but we can test the data structure
         let data = output.get_data();
         let json = serde_json::to_string(data)?;
         assert!(json.contains("1.0.0"));
         assert!(json.contains("npm"));
-        
+
         env::remove_var("AUTOVERSION_OUTPUT_FORMAT");
         Ok(())
     }
@@ -321,23 +353,23 @@ mod tests {
     fn test_github_actions_output_with_file() -> Result<()> {
         let temp_file = NamedTempFile::new()?;
         let temp_path = temp_file.path().to_str().unwrap();
-        
+
         env::set_var("GITHUB_OUTPUT", temp_path);
         env::set_var("AUTOVERSION_OUTPUT_FORMAT", "github-actions");
-        
+
         let mut output = ActionOutput::new();
         output.set_version("2.0.0");
         output.set_technology("cargo");
         output.set_tag_created(true);
-        
+
         output.write_github_actions_output()?;
-        
+
         let content = fs::read_to_string(temp_path)?;
         assert!(content.contains("version=2.0.0"));
         assert!(content.contains("technology=cargo"));
         assert!(content.contains("tag-created=true"));
         assert!(content.contains("tag-name=v2.0.0"));
-        
+
         env::remove_var("GITHUB_OUTPUT");
         env::remove_var("AUTOVERSION_OUTPUT_FORMAT");
         Ok(())
@@ -347,14 +379,14 @@ mod tests {
     fn test_write_github_output_utility() -> Result<()> {
         let temp_file = NamedTempFile::new()?;
         let temp_path = temp_file.path().to_str().unwrap();
-        
+
         env::set_var("GITHUB_OUTPUT", temp_path);
-        
+
         write_github_output("test-key", "test-value")?;
-        
+
         let content = fs::read_to_string(temp_path)?;
         assert!(content.contains("test-key=test-value"));
-        
+
         env::remove_var("GITHUB_OUTPUT");
         Ok(())
     }
@@ -363,19 +395,22 @@ mod tests {
     fn test_default_format_detection() {
         use std::sync::{Mutex, OnceLock};
         static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        let _lock = ENV_LOCK.get_or_init(|| Mutex::new(())).lock().unwrap_or_else(|e| e.into_inner());
-        
+        let _lock = ENV_LOCK
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+
         // Save previous value
         let prev = env::var("GITHUB_ACTIONS").ok();
-        
+
         // Test GitHub Actions environment detection
         env::set_var("GITHUB_ACTIONS", "true");
         let _output = ActionOutput::new();
-        
+
         // In real usage, this would be detected in write_outputs()
         // Here we just test that the environment variable exists
         assert!(env::var("GITHUB_ACTIONS").is_ok());
-        
+
         // Restore previous value
         env::remove_var("GITHUB_ACTIONS");
         if let Some(val) = prev {

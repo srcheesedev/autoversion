@@ -21,5 +21,5 @@
 //! - `operations`: Tag creation, commits, and basic git operations
 //! - `history`: Commit analysis for version bump determination
 
-pub mod operations;
 pub mod history;
+pub mod operations;

@@ -1,7 +1,7 @@
 use assert_cmd::prelude::*;
-use std::process::Command;
-use std::fs;
 use std::env;
+use std::fs;
+use std::process::Command;
 use tempfile::TempDir;
 
 /// Helper function to get the autoversion binary path
@@ -78,25 +78,25 @@ fn init_git_repo(path: &std::path::Path) {
         .current_dir(path)
         .output()
         .unwrap();
-    
+
     Command::new("git")
         .args(["config", "user.name", "Test User"])
         .current_dir(path)
         .output()
         .unwrap();
-    
+
     Command::new("git")
         .args(["config", "user.email", "test@example.com"])
         .current_dir(path)
         .output()
         .unwrap();
-    
+
     Command::new("git")
         .args(["add", "."])
         .current_dir(path)
         .output()
         .unwrap();
-    
+
     Command::new("git")
         .args(["commit", "-m", "Initial commit"])
         .current_dir(path)
@@ -168,9 +168,16 @@ fn test_e2e_cargo_patch_bump() {
     let project_path = create_cargo_project(&temp);
 
     let mut cmd = Command::new(get_autoversion_bin());
-    cmd.args(["-p", project_path.to_str().unwrap(), "-b", "patch", "-t", "cargo"])
-        .assert()
-        .success();
+    cmd.args([
+        "-p",
+        project_path.to_str().unwrap(),
+        "-b",
+        "patch",
+        "-t",
+        "cargo",
+    ])
+    .assert()
+    .success();
 
     let content = fs::read_to_string(project_path.join("Cargo.toml")).unwrap();
     assert!(content.contains("1.0.1"));
@@ -182,9 +189,16 @@ fn test_e2e_maven_minor_bump() {
     let project_path = create_maven_project(&temp);
 
     let mut cmd = Command::new(get_autoversion_bin());
-    cmd.args(["-p", project_path.to_str().unwrap(), "-b", "minor", "-t", "maven"])
-        .assert()
-        .success();
+    cmd.args([
+        "-p",
+        project_path.to_str().unwrap(),
+        "-b",
+        "minor",
+        "-t",
+        "maven",
+    ])
+    .assert()
+    .success();
 
     let content = fs::read_to_string(project_path.join("pom.xml")).unwrap();
     assert!(content.contains("1.1.0"));
@@ -196,9 +210,16 @@ fn test_e2e_generic_major_bump() {
     let project_path = create_generic_project(&temp);
 
     let mut cmd = Command::new(get_autoversion_bin());
-    cmd.args(["-p", project_path.to_str().unwrap(), "-b", "major", "-t", "generic"])
-        .assert()
-        .success();
+    cmd.args([
+        "-p",
+        project_path.to_str().unwrap(),
+        "-b",
+        "major",
+        "-t",
+        "generic",
+    ])
+    .assert()
+    .success();
 
     let content = fs::read_to_string(project_path.join("VERSION")).unwrap();
     assert!(content.contains("2.0.0"));
@@ -211,9 +232,16 @@ fn test_e2e_auto_detect_npm() {
 
     // Don't specify technology, let it auto-detect
     let mut cmd = Command::new(get_autoversion_bin());
-    cmd.args(["-p", project_path.to_str().unwrap(), "-b", "patch", "-t", "auto"])
-        .assert()
-        .success();
+    cmd.args([
+        "-p",
+        project_path.to_str().unwrap(),
+        "-b",
+        "patch",
+        "-t",
+        "auto",
+    ])
+    .assert()
+    .success();
 
     let content = fs::read_to_string(project_path.join("package.json")).unwrap();
     assert!(content.contains("1.0.1"));
@@ -225,9 +253,16 @@ fn test_e2e_auto_detect_cargo() {
     let project_path = create_cargo_project(&temp);
 
     let mut cmd = Command::new(get_autoversion_bin());
-    cmd.args(["-p", project_path.to_str().unwrap(), "-b", "patch", "-t", "auto"])
-        .assert()
-        .success();
+    cmd.args([
+        "-p",
+        project_path.to_str().unwrap(),
+        "-b",
+        "patch",
+        "-t",
+        "auto",
+    ])
+    .assert()
+    .success();
 
     let content = fs::read_to_string(project_path.join("Cargo.toml")).unwrap();
     assert!(content.contains("1.0.1"));
@@ -263,7 +298,7 @@ fn test_e2e_git_tag_creation() {
         .current_dir(&project_path)
         .output()
         .unwrap();
-    
+
     let tags = String::from_utf8_lossy(&output.stdout);
     assert!(tags.contains("v1.0.1"));
 }
@@ -285,7 +320,7 @@ fn test_e2e_git_commit_creation() {
         .current_dir(&project_path)
         .output()
         .unwrap();
-    
+
     let log = String::from_utf8_lossy(&output.stdout);
     eprintln!("Git log output: {}", log);
     assert!(log.contains("1.0.1") || log.contains("Bump") || log.contains("bump"));
@@ -298,9 +333,16 @@ fn test_e2e_git_tag_and_commit() {
     init_git_repo(&project_path);
 
     let mut cmd = Command::new(get_autoversion_bin());
-    cmd.args(["-p", project_path.to_str().unwrap(), "-b", "patch", "-c", "-C"])
-        .assert()
-        .success();
+    cmd.args([
+        "-p",
+        project_path.to_str().unwrap(),
+        "-b",
+        "patch",
+        "-c",
+        "-C",
+    ])
+    .assert()
+    .success();
 
     // Check both tag and commit
     let tag_output = Command::new("git")
@@ -308,7 +350,7 @@ fn test_e2e_git_tag_and_commit() {
         .current_dir(&project_path)
         .output()
         .unwrap();
-    
+
     let tags = String::from_utf8_lossy(&tag_output.stdout);
     assert!(tags.contains("v1.0.1"));
 
@@ -317,7 +359,7 @@ fn test_e2e_git_tag_and_commit() {
         .current_dir(&project_path)
         .output()
         .unwrap();
-    
+
     let log = String::from_utf8_lossy(&commit_output.stdout);
     assert!(log.contains("1.0.1") || log.contains("Bump version"));
 }
@@ -330,10 +372,13 @@ fn test_e2e_custom_commit_message() {
 
     let mut cmd = Command::new(get_autoversion_bin());
     cmd.args([
-        "-p", project_path.to_str().unwrap(),
-        "-b", "patch",
+        "-p",
+        project_path.to_str().unwrap(),
+        "-b",
+        "patch",
         "-C",
-        "-m", "🚀 Release version {version}"
+        "-m",
+        "🚀 Release version {version}",
     ])
     .assert()
     .success();
@@ -343,7 +388,7 @@ fn test_e2e_custom_commit_message() {
         .current_dir(&project_path)
         .output()
         .unwrap();
-    
+
     let log = String::from_utf8_lossy(&output.stdout);
     assert!(log.contains("🚀 Release version 1.0.1"));
 }
@@ -351,7 +396,7 @@ fn test_e2e_custom_commit_message() {
 #[test]
 fn test_e2e_error_no_manifest_file() {
     let temp = TempDir::new().unwrap();
-    
+
     let mut cmd = Command::new(get_autoversion_bin());
     cmd.args(["-p", temp.path().to_str().unwrap(), "-b", "patch"])
         .assert()
@@ -390,7 +435,7 @@ fn test_e2e_backup_file_creation() {
     // Check that backup file was created
     let backup_file = project_path.join("package.json.autoversion.backup");
     assert!(backup_file.exists());
-    
+
     let backup_content = fs::read_to_string(backup_file).unwrap();
     assert!(backup_content.contains("1.0.0"));
 }
@@ -459,7 +504,8 @@ fn test_e2e_output_shows_version_change() {
     let project_path = create_npm_project(&temp);
 
     let mut cmd = Command::new(get_autoversion_bin());
-    let output = cmd.args(["-p", project_path.to_str().unwrap(), "-b", "patch"])
+    let output = cmd
+        .args(["-p", project_path.to_str().unwrap(), "-b", "patch"])
         .output()
         .unwrap();
 
@@ -471,15 +517,11 @@ fn test_e2e_output_shows_version_change() {
 #[test]
 fn test_e2e_help_command() {
     let mut cmd = Command::new(get_autoversion_bin());
-    cmd.arg("--help")
-        .assert()
-        .success();
+    cmd.arg("--help").assert().success();
 }
 
 #[test]
 fn test_e2e_version_command() {
     let mut cmd = Command::new(get_autoversion_bin());
-    cmd.arg("--version")
-        .assert()
-        .success();
+    cmd.arg("--version").assert().success();
 }

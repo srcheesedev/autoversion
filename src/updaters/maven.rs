@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use regex::Regex;
 use std::path::{Path, PathBuf};
 
-use super::traits::{VersionUpdater, VersionChange};
+use super::traits::{VersionChange, VersionUpdater};
 use crate::constants::manifests::MAVEN_POM;
 use crate::utils::files::{backup_file, read_file_safe, write_file_safe};
 
@@ -131,11 +131,14 @@ impl MavenUpdater {
     fn extract_version(&self, content: &str) -> Option<String> {
         // Try to find the first <version>...</version> under project; regex with DOTALL
         let re = Regex::new(r"(?s)<project.*?>.*?<version>\s*([^<\s]+)\s*</version>").ok()?;
-        re.captures(content).and_then(|c| c.get(1)).map(|m| m.as_str().to_string())
+        re.captures(content)
+            .and_then(|c| c.get(1))
+            .map(|m| m.as_str().to_string())
     }
 
     fn replace_version(&self, content: &str, new_version: &str) -> Result<String> {
-        let re = Regex::new(r"(?s)(<project.*?>.*?<version>)\s*([^<\s]+)(\s*</version>)").map_err(|e| anyhow!(e.to_string()))?;
+        let re = Regex::new(r"(?s)(<project.*?>.*?<version>)\s*([^<\s]+)(\s*</version>)")
+            .map_err(|e| anyhow!(e.to_string()))?;
         if re.is_match(content) {
             // Usamos closure para reconstruir la nueva cadena a partir de capturas.
             // Esto evita problemas de interpretación de $1/$2 por la API de regex.
@@ -200,7 +203,11 @@ impl VersionUpdater for MavenUpdater {
         project_path.join(MAVEN_POM).exists()
     }
 
-    fn preview_changes(&self, project_path: &Path, new_version: &str) -> Result<Vec<VersionChange>> {
+    fn preview_changes(
+        &self,
+        project_path: &Path,
+        new_version: &str,
+    ) -> Result<Vec<VersionChange>> {
         let pom = project_path.join(MAVEN_POM);
         let mut changes = Vec::new();
         if pom.exists() {
@@ -222,8 +229,8 @@ impl VersionUpdater for MavenUpdater {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use std::fs;
+    use tempfile::TempDir;
 
     // Tests (TDD):
     // - Each test creates a temporary project and performs the expected operation.
@@ -296,20 +303,20 @@ mod tests {
     fn test_snapshot_version_handling() -> anyhow::Result<()> {
         let tmp = TempDir::new()?;
         let path = tmp.path();
-        
+
         // Test that SNAPSHOT versions can be read
         create_pom(path, "1.2.3-SNAPSHOT")?;
         let updater = MavenUpdater::new();
         let current = updater.get_current_version(path)?;
         assert_eq!(current, "1.2.3-SNAPSHOT");
-        
+
         // Test that SNAPSHOT versions can be updated to release versions
         let updated = updater.update_version(path, "1.2.3")?;
         assert_eq!(updated.len(), 1);
         let content = fs::read_to_string(path.join(MAVEN_POM))?;
         assert!(content.contains("<version>1.2.3</version>"));
         assert!(!content.contains("SNAPSHOT"));
-        
+
         Ok(())
     }
 
@@ -318,7 +325,7 @@ mod tests {
         // TDD: Verify that only project version is updated, not dependency versions
         let tmp = TempDir::new()?;
         let path = tmp.path();
-        
+
         // Create a POM with project version and dependencies with versions
         let pom_content = r#"<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -355,27 +362,31 @@ mod tests {
 </project>
 "#;
         fs::write(path.join(MAVEN_POM), pom_content)?;
-        
+
         let updater = MavenUpdater::new();
-        
+
         // Verify current version is extracted correctly
         let current = updater.get_current_version(path)?;
         assert_eq!(current, "1.0.0");
-        
+
         // Update version
         updater.update_version(path, "2.0.0")?;
-        
+
         // Read updated content
         let updated_content = fs::read_to_string(path.join(MAVEN_POM))?;
-        
+
         // Assert project version changed
-        assert!(updated_content.contains("<artifactId>test-project</artifactId>\n    <version>2.0.0</version>"));
-        
+        assert!(updated_content
+            .contains("<artifactId>test-project</artifactId>\n    <version>2.0.0</version>"));
+
         // Assert dependency versions unchanged
-        assert!(updated_content.contains("<artifactId>junit</artifactId>\n            <version>4.13.2</version>"));
-        assert!(updated_content.contains("<artifactId>mockito-core</artifactId>\n            <version>5.0.0</version>"));
+        assert!(updated_content
+            .contains("<artifactId>junit</artifactId>\n            <version>4.13.2</version>"));
+        assert!(updated_content.contains(
+            "<artifactId>mockito-core</artifactId>\n            <version>5.0.0</version>"
+        ));
         assert!(updated_content.contains("<artifactId>maven-compiler-plugin</artifactId>\n                <version>3.11.0</version>"));
-        
+
         Ok(())
     }
 }

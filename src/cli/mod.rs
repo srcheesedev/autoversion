@@ -1,4 +1,4 @@
-pub mod args;
-pub mod output;
-pub mod info;
 pub mod analyze;
+pub mod args;
+pub mod info;
+pub mod output;

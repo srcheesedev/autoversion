@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 
-use super::traits::{VersionUpdater, VersionChange};
+use super::traits::{VersionChange, VersionUpdater};
 use crate::constants::manifests::{NPM_PACKAGE_JSON, NPM_PACKAGE_LOCK};
 use crate::utils::files::{backup_file, read_file_safe, write_file_safe};
 
@@ -80,17 +80,19 @@ impl NpmUpdater {
 
     /// Parse package.json and extract version
     fn parse_package_json(&self, content: &str) -> Result<Value> {
-        serde_json::from_str(content)
-            .map_err(|e| anyhow!("Failed to parse package.json: {}", e))
+        serde_json::from_str(content).map_err(|e| anyhow!("Failed to parse package.json: {}", e))
     }
 
     /// Update version in package.json content
     fn update_package_json_content(&self, content: &str, new_version: &str) -> Result<String> {
         let mut package_json: Value = self.parse_package_json(content)?;
-        
+
         // Update version field
         if let Some(obj) = package_json.as_object_mut() {
-            obj.insert("version".to_string(), Value::String(new_version.to_string()));
+            obj.insert(
+                "version".to_string(),
+                Value::String(new_version.to_string()),
+            );
         } else {
             return Err(anyhow!("package.json root is not an object"));
         }
@@ -103,20 +105,20 @@ impl NpmUpdater {
     /// Check for additional NPM-related files to update
     fn find_related_files(&self, project_path: &Path) -> Vec<PathBuf> {
         let mut files = Vec::new();
-        
+
         // package-lock.json (NPM)
         let package_lock = project_path.join(NPM_PACKAGE_LOCK);
         if package_lock.exists() && package_lock.is_file() {
             files.push(package_lock);
         }
-        
+
         // yarn.lock doesn't contain version info, but we might want to note it
         // npm-shrinkwrap.json (if it exists)
         let shrinkwrap = project_path.join("npm-shrinkwrap.json");
         if shrinkwrap.exists() && shrinkwrap.is_file() {
             files.push(shrinkwrap);
         }
-        
+
         files
     }
 
@@ -128,23 +130,29 @@ impl NpmUpdater {
 
         if let Some(obj) = lock_json.as_object_mut() {
             // Update version at root level
-            obj.insert("version".to_string(), Value::String(new_version.to_string()));
-            
+            obj.insert(
+                "version".to_string(),
+                Value::String(new_version.to_string()),
+            );
+
             // Update version in packages."" (root package)
             if let Some(packages) = obj.get_mut("packages") {
                 if let Some(packages_obj) = packages.as_object_mut() {
                     if let Some(root_package) = packages_obj.get_mut("") {
                         if let Some(root_obj) = root_package.as_object_mut() {
-                            root_obj.insert("version".to_string(), Value::String(new_version.to_string()));
+                            root_obj.insert(
+                                "version".to_string(),
+                                Value::String(new_version.to_string()),
+                            );
                         }
                     }
                 }
             }
         }
 
-    let updated_content = serde_json::to_string_pretty(&lock_json)?;
-    write_file_safe(file_path, &(updated_content + "\n"))?;
-        
+        let updated_content = serde_json::to_string_pretty(&lock_json)?;
+        write_file_safe(file_path, &(updated_content + "\n"))?;
+
         Ok(())
     }
 }
@@ -161,7 +169,7 @@ impl VersionUpdater for NpmUpdater {
         let content = read_file_safe(&package_json_path)?;
 
         let package_json = self.parse_package_json(&content)?;
-        
+
         package_json
             .get("version")
             .and_then(|v| v.as_str())
@@ -197,16 +205,25 @@ impl VersionUpdater for NpmUpdater {
 
     fn validate_project(&self, project_path: &Path) -> Result<()> {
         let package_json_path = project_path.join(NPM_PACKAGE_JSON);
-        
+
         if !package_json_path.exists() {
-            return Err(anyhow!("package.json not found in {}", project_path.display()));
+            return Err(anyhow!(
+                "package.json not found in {}",
+                project_path.display()
+            ));
         }
 
         let content = read_file_safe(&package_json_path)?;
         let package_json = self.parse_package_json(&content)?;
 
-        if !package_json.get("version").and_then(|v| v.as_str()).is_some() {
-            return Err(anyhow!("package.json does not contain a valid version field"));
+        if !package_json
+            .get("version")
+            .and_then(|v| v.as_str())
+            .is_some()
+        {
+            return Err(anyhow!(
+                "package.json does not contain a valid version field"
+            ));
         }
 
         Ok(())
@@ -229,16 +246,20 @@ impl VersionUpdater for NpmUpdater {
         project_path.join(NPM_PACKAGE_JSON).exists()
     }
 
-    fn preview_changes(&self, project_path: &Path, new_version: &str) -> Result<Vec<VersionChange>> {
+    fn preview_changes(
+        &self,
+        project_path: &Path,
+        new_version: &str,
+    ) -> Result<Vec<VersionChange>> {
         let mut changes = Vec::new();
-        
+
         // Preview package.json changes
         let package_json_path = project_path.join(NPM_PACKAGE_JSON);
         if package_json_path.exists() {
             let old_content = read_file_safe(&package_json_path)?;
             let new_content = self.update_package_json_content(&old_content, new_version)?;
             let old_version = self.get_current_version(project_path)?;
-            
+
             changes.push(VersionChange::new(
                 package_json_path,
                 old_content,
@@ -253,14 +274,17 @@ impl VersionUpdater for NpmUpdater {
         for file_path in related_files {
             if file_path.file_name().unwrap() == "package-lock.json" {
                 let old_content = read_file_safe(&file_path)?;
-                
+
                 // Simulate the update to get new content
                 let mut lock_json: Value = serde_json::from_str(&old_content)?;
                 if let Some(obj) = lock_json.as_object_mut() {
-                    obj.insert("version".to_string(), Value::String(new_version.to_string()));
+                    obj.insert(
+                        "version".to_string(),
+                        Value::String(new_version.to_string()),
+                    );
                 }
                 let new_content = serde_json::to_string_pretty(&lock_json)? + "\n";
-                
+
                 let old_version = self.get_current_version(project_path)?;
                 changes.push(VersionChange::new(
                     file_path,
@@ -326,12 +350,12 @@ mod tests {
     fn test_get_current_version() -> Result<()> {
         let temp_dir = TempDir::new()?;
         let project_path = temp_dir.path();
-        
+
         create_package_json(project_path, "1.2.3")?;
-        
+
         let updater = NpmUpdater::new();
         let version = updater.get_current_version(project_path)?;
-        
+
         assert_eq!(version, "1.2.3");
         Ok(())
     }
@@ -340,24 +364,24 @@ mod tests {
     fn test_update_version() -> Result<()> {
         let temp_dir = TempDir::new()?;
         let project_path = temp_dir.path();
-        
+
         create_package_json(project_path, "1.2.3")?;
         create_package_lock(project_path, "1.2.3")?;
-        
+
         let updater = NpmUpdater::new();
         let updated_files = updater.update_version(project_path, "1.3.0")?;
-        
+
         // Should update both package.json and package-lock.json
         assert_eq!(updated_files.len(), 2);
-        
+
         // Verify package.json was updated
         let new_version = updater.get_current_version(project_path)?;
         assert_eq!(new_version, "1.3.0");
-        
+
         // Verify package-lock.json was updated
         let lock_content = fs::read_to_string(project_path.join("package-lock.json"))?;
         assert!(lock_content.contains(r#""version": "1.3.0""#));
-        
+
         Ok(())
     }
 
@@ -365,12 +389,12 @@ mod tests {
     fn test_validate_project_valid() -> Result<()> {
         let temp_dir = TempDir::new()?;
         let project_path = temp_dir.path();
-        
+
         create_package_json(project_path, "1.0.0")?;
-        
+
         let updater = NpmUpdater::new();
         let result = updater.validate_project(project_path);
-        
+
         assert!(result.is_ok());
         Ok(())
     }
@@ -379,30 +403,33 @@ mod tests {
     fn test_validate_project_missing_file() {
         let temp_dir = TempDir::new().unwrap();
         let project_path = temp_dir.path();
-        
+
         let updater = NpmUpdater::new();
         let result = updater.validate_project(project_path);
-        
+
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("package.json not found"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("package.json not found"));
     }
 
     #[test]
     fn test_validate_project_no_version() -> Result<()> {
         let temp_dir = TempDir::new()?;
         let project_path = temp_dir.path();
-        
+
         // Create package.json without version
-        fs::write(
-            project_path.join("package.json"),
-            r#"{"name": "test"}"#
-        )?;
-        
+        fs::write(project_path.join("package.json"), r#"{"name": "test"}"#)?;
+
         let updater = NpmUpdater::new();
         let result = updater.validate_project(project_path);
-        
+
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("does not contain a valid version field"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("does not contain a valid version field"));
         Ok(())
     }
 
@@ -410,16 +437,16 @@ mod tests {
     fn test_can_handle() -> Result<()> {
         let temp_dir = TempDir::new()?;
         let project_path = temp_dir.path();
-        
+
         let updater = NpmUpdater::new();
-        
+
         // Should not handle without package.json
         assert!(!updater.can_handle(project_path));
-        
+
         // Should handle with package.json
         create_package_json(project_path, "1.0.0")?;
         assert!(updater.can_handle(project_path));
-        
+
         Ok(())
     }
 
@@ -427,17 +454,17 @@ mod tests {
     fn test_preview_changes() -> Result<()> {
         let temp_dir = TempDir::new()?;
         let project_path = temp_dir.path();
-        
+
         create_package_json(project_path, "1.0.0")?;
-        
+
         let updater = NpmUpdater::new();
         let changes = updater.preview_changes(project_path, "2.0.0")?;
-        
+
         assert_eq!(changes.len(), 1);
         assert_eq!(changes[0].old_version, "1.0.0");
         assert_eq!(changes[0].new_version, "2.0.0");
         assert!(changes[0].new_content.contains(r#""version": "2.0.0""#));
-        
+
         Ok(())
     }
 

@@ -115,7 +115,7 @@ fn test_integration_error_recovery_invalid_version() {
 
     // Try to set invalid version (should still work for NPM as it's permissive)
     let result = updater.update_version(temp.path(), "invalid");
-    
+
     // NPM updater is permissive, so this actually succeeds
     assert!(result.is_ok());
 }
@@ -134,7 +134,7 @@ fn test_integration_error_missing_manifest() {
 #[test]
 fn test_integration_error_corrupted_json() {
     let temp = TempDir::new().unwrap();
-    
+
     // Create invalid JSON
     fs::write(
         temp.path().join("package.json"),
@@ -151,7 +151,7 @@ fn test_integration_error_corrupted_json() {
 #[test]
 fn test_integration_sequential_updates_preserve_formatting() {
     let temp = TempDir::new().unwrap();
-    
+
     // Create with specific formatting
     fs::write(
         temp.path().join("package.json"),
@@ -181,21 +181,21 @@ fn test_integration_concurrent_backup_prevention() {
     create_npm_project(temp.path()).unwrap();
 
     let updater = NpmUpdater;
-    
+
     // First update creates backup
     updater.update_version(temp.path(), "1.1.0").unwrap();
-    
+
     let backup_path = temp.path().join("package.json.autoversion.backup");
     let modified1 = fs::metadata(&backup_path).unwrap().modified().unwrap();
-    
+
     // Small delay
     std::thread::sleep(std::time::Duration::from_millis(10));
-    
+
     // Second update should replace backup
     updater.update_version(temp.path(), "1.2.0").unwrap();
-    
+
     let modified2 = fs::metadata(&backup_path).unwrap().modified().unwrap();
-    
+
     // Backup should have been updated
     assert!(modified2 > modified1);
 }
@@ -203,24 +203,24 @@ fn test_integration_concurrent_backup_prevention() {
 #[test]
 fn test_integration_file_permissions_preserved() {
     use std::os::unix::fs::PermissionsExt;
-    
+
     let temp = TempDir::new().unwrap();
     let package_path = temp.path().join("package.json");
-    
+
     create_npm_project(temp.path()).unwrap();
-    
+
     // Set specific permissions
     let mut perms = fs::metadata(&package_path).unwrap().permissions();
     perms.set_mode(0o644);
     fs::set_permissions(&package_path, perms).unwrap();
-    
+
     // Update version
     let updater = NpmUpdater;
     updater.update_version(temp.path(), "1.5.0").unwrap();
-    
+
     // Check permissions are preserved (roughly - umask may affect this)
     let new_mode = fs::metadata(&package_path).unwrap().permissions().mode();
-    
+
     // Just verify file is still readable and writable
     assert!(new_mode & 0o600 == 0o600);
 }
@@ -228,7 +228,7 @@ fn test_integration_file_permissions_preserved() {
 #[test]
 fn test_integration_empty_file_handling() {
     let temp = TempDir::new().unwrap();
-    
+
     // Create empty file
     fs::write(temp.path().join("package.json"), "").unwrap();
 
@@ -241,29 +241,35 @@ fn test_integration_empty_file_handling() {
 #[test]
 fn test_integration_large_file_handling() {
     let temp = TempDir::new().unwrap();
-    
+
     // Create package.json with lots of extra data
-    let mut content = String::from(r#"{
+    let mut content = String::from(
+        r#"{
   "name": "test-project",
   "version": "1.0.0",
   "description": "Test",
   "dependencies": {
-"#);
-    
+"#,
+    );
+
     // Add 1000 fake dependencies
     for i in 0..1000 {
-        content.push_str(&format!("    \"package-{}\": \"^1.0.0\"{}\n", i, if i < 999 { "," } else { "" }));
+        content.push_str(&format!(
+            "    \"package-{}\": \"^1.0.0\"{}\n",
+            i,
+            if i < 999 { "," } else { "" }
+        ));
     }
     content.push_str("  }\n}");
-    
+
     fs::write(temp.path().join("package.json"), content).unwrap();
 
     let updater = NpmUpdater;
-    
+
     // Should handle large file
     let version = updater.get_current_version(temp.path()).unwrap();
     assert_eq!(version, "1.0.0");
-    
+
     // Should be able to update large file
     let result = updater.update_version(temp.path(), "2.0.0");
     assert!(result.is_ok());

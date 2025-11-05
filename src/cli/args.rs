@@ -177,7 +177,9 @@ impl Args {
         }
 
         // Validate technology
-        if !["auto", "npm", "cargo", "maven", "python", "generic"].contains(&self.technology.as_str()) {
+        if !["auto", "npm", "cargo", "maven", "python", "generic"]
+            .contains(&self.technology.as_str())
+        {
             return Err(format!(
                 "Invalid technology '{}'. Valid options: auto, npm, cargo, maven, python, generic",
                 self.technology
@@ -225,7 +227,9 @@ impl Args {
         // Validate rollback options
         if self.rollback {
             if self.rollback_files_only && self.rollback_git_only {
-                return Err("Cannot use --rollback-files-only and --rollback-git-only together".to_string());
+                return Err(
+                    "Cannot use --rollback-files-only and --rollback-git-only together".to_string(),
+                );
             }
 
             // Rollback mode conflicts with version bump operations
@@ -281,8 +285,8 @@ impl Args {
 mod tests {
     use super::*;
     use clap::Parser;
-    use tempfile::TempDir;
     use std::sync::{Mutex, OnceLock};
+    use tempfile::TempDir;
 
     // Global lock to serialize tests that mutate environment variables
     static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -290,7 +294,7 @@ mod tests {
     #[test]
     fn test_default_args() {
         let args = Args::parse_from(&["autoversion"]);
-        
+
         assert_eq!(args.bump_type, "auto");
         assert_eq!(args.technology, "auto");
         assert!(!args.create_tag); // false by default because flag wasn't specified
@@ -310,21 +314,27 @@ mod tests {
     fn test_custom_args() {
         let temp_dir = TempDir::new().unwrap();
         let path = temp_dir.path().to_str().unwrap();
-        
+
         let args = Args::parse_from(&[
             "autoversion",
-            "--bump-type", "major",
-            "--technology", "npm",
-            "--tag-prefix", "release-",
+            "--bump-type",
+            "major",
+            "--technology",
+            "npm",
+            "--tag-prefix",
+            "release-",
             "--dry-run",
-            "--path", path,
+            "--path",
+            path,
             "--force",
             "--commit",
-            "--commit-message", "Release {version}",
+            "--commit-message",
+            "Release {version}",
             "--verbose",
-            "--output", "json",
+            "--output",
+            "json",
         ]);
-        
+
         assert_eq!(args.bump_type, "major");
         assert_eq!(args.technology, "npm");
         assert!(!args.create_tag); // false because --create-tag was not specified
@@ -340,12 +350,8 @@ mod tests {
 
     #[test]
     fn test_create_tag_flag() {
-        let args = Args::parse_from(&[
-            "autoversion",
-            "--create-tag",
-            "--tag-prefix", "v",
-        ]);
-        
+        let args = Args::parse_from(&["autoversion", "--create-tag", "--tag-prefix", "v"]);
+
         assert!(args.create_tag); // true because --create-tag was specified
         assert_eq!(args.tag_prefix, "v");
     }
@@ -354,7 +360,7 @@ mod tests {
     fn test_validation_invalid_bump_type() {
         let mut args = Args::parse_from(&["autoversion"]);
         args.bump_type = "invalid".to_string();
-        
+
         assert!(args.validate().is_err());
         assert!(args.validate().unwrap_err().contains("Invalid bump type"));
     }
@@ -363,7 +369,7 @@ mod tests {
     fn test_validation_invalid_technology() {
         let mut args = Args::parse_from(&["autoversion"]);
         args.technology = "invalid".to_string();
-        
+
         assert!(args.validate().is_err());
         assert!(args.validate().unwrap_err().contains("Invalid technology"));
     }
@@ -372,16 +378,19 @@ mod tests {
     fn test_validation_invalid_output_format() {
         let mut args = Args::parse_from(&["autoversion"]);
         args.output_format = "invalid".to_string();
-        
+
         assert!(args.validate().is_err());
-        assert!(args.validate().unwrap_err().contains("Invalid output format"));
+        assert!(args
+            .validate()
+            .unwrap_err()
+            .contains("Invalid output format"));
     }
 
     #[test]
     fn test_validation_nonexistent_path() {
         let mut args = Args::parse_from(&["autoversion"]);
         args.path = PathBuf::from("/nonexistent/path");
-        
+
         assert!(args.validate().is_err());
         assert!(args.validate().unwrap_err().contains("does not exist"));
     }
@@ -391,9 +400,12 @@ mod tests {
         let mut args = Args::parse_from(&["autoversion"]);
         args.commit_message = Some("test".to_string());
         args.commit = false;
-        
+
         assert!(args.validate().is_err());
-        assert!(args.validate().unwrap_err().contains("--commit-message can only be used with --commit"));
+        assert!(args
+            .validate()
+            .unwrap_err()
+            .contains("--commit-message can only be used with --commit"));
     }
 
     #[test]
@@ -401,18 +413,24 @@ mod tests {
         let mut args = Args::parse_from(&["autoversion"]);
         args.show_info = true;
         args.analyze = true;
-        
+
         assert!(args.validate().is_err());
-        assert!(args.validate().unwrap_err().contains("Cannot use --show-info and --analyze together"));
+        assert!(args
+            .validate()
+            .unwrap_err()
+            .contains("Cannot use --show-info and --analyze together"));
     }
 
     #[test]
     fn test_github_actions_detection() {
-        let _lock = ENV_LOCK.get_or_init(|| Mutex::new(())).lock().unwrap_or_else(|e| e.into_inner());
+        let _lock = ENV_LOCK
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
 
         // Save previous value and restore at the end
         let prev = std::env::var("GITHUB_ACTIONS").ok();
-        
+
         // Test environment variable detection
         std::env::set_var("GITHUB_ACTIONS", "true");
         let args = Args::parse_from(&["autoversion"]);
@@ -433,7 +451,10 @@ mod tests {
 
     #[test]
     fn test_effective_output_format() {
-        let _lock = ENV_LOCK.get_or_init(|| Mutex::new(())).lock().unwrap_or_else(|e| e.into_inner());
+        let _lock = ENV_LOCK
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
 
         // Save previous value
         let prev = std::env::var("GITHUB_ACTIONS").ok();

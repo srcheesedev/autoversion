@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 
-use super::traits::{VersionUpdater, VersionChange};
+use super::traits::{VersionChange, VersionUpdater};
 use crate::constants::manifests::{PHP_COMPOSER, PHP_COMPOSER_LOCK};
 use crate::utils::files::{backup_file, read_file_safe, write_file_safe};
 
@@ -89,17 +89,19 @@ impl ComposerUpdater {
 
     /// Parse composer.json and extract version
     fn parse_composer_json(&self, content: &str) -> Result<Value> {
-        serde_json::from_str(content)
-            .map_err(|e| anyhow!("Failed to parse composer.json: {}", e))
+        serde_json::from_str(content).map_err(|e| anyhow!("Failed to parse composer.json: {}", e))
     }
 
     /// Update version in composer.json content
     fn update_composer_json_content(&self, content: &str, new_version: &str) -> Result<String> {
         let mut composer_json: Value = self.parse_composer_json(content)?;
-        
+
         // Update version field
         if let Some(obj) = composer_json.as_object_mut() {
-            obj.insert("version".to_string(), Value::String(new_version.to_string()));
+            obj.insert(
+                "version".to_string(),
+                Value::String(new_version.to_string()),
+            );
         } else {
             return Err(anyhow!("composer.json root is not an object"));
         }
@@ -114,9 +116,9 @@ impl VersionUpdater for ComposerUpdater {
     fn get_current_version(&self, project_path: &Path) -> Result<String> {
         let composer_json = project_path.join(PHP_COMPOSER);
         let content = read_file_safe(&composer_json)?;
-        
+
         let json: Value = self.parse_composer_json(&content)?;
-        
+
         // Extract version field
         json.get("version")
             .and_then(|v| v.as_str())
@@ -126,48 +128,53 @@ impl VersionUpdater for ComposerUpdater {
 
     fn update_version(&self, project_path: &Path, new_version: &str) -> Result<Vec<String>> {
         let mut updated_files = Vec::new();
-        
+
         // Update composer.json
         let composer_json = project_path.join(PHP_COMPOSER);
         let content = read_file_safe(&composer_json)?;
-        
+
         backup_file(&composer_json)?;
         let new_content = self.update_composer_json_content(&content, new_version)?;
         write_file_safe(&composer_json, &new_content)?;
-        
+
         updated_files.push(composer_json.display().to_string());
-        
+
         // Update composer.lock if it exists
         let composer_lock = project_path.join(PHP_COMPOSER_LOCK);
         if composer_lock.exists() {
             let lock_content = read_file_safe(&composer_lock)?;
             backup_file(&composer_lock)?;
-            
+
             // Parse and update composer.lock
             let mut lock_json: Value = serde_json::from_str(&lock_content)
                 .map_err(|e| anyhow!("Failed to parse composer.lock: {}", e))?;
-            
+
             // Update version if present in lock file
             if let Some(obj) = lock_json.as_object_mut() {
                 if obj.contains_key("version") {
-                    obj.insert("version".to_string(), Value::String(new_version.to_string()));
+                    obj.insert(
+                        "version".to_string(),
+                        Value::String(new_version.to_string()),
+                    );
                 }
             }
-            
+
             let new_lock_content = serde_json::to_string_pretty(&lock_json)
                 .map_err(|e| anyhow!("Failed to serialize composer.lock: {}", e))?;
-            
+
             write_file_safe(&composer_lock, &new_lock_content)?;
             updated_files.push(composer_lock.display().to_string());
         }
-        
+
         Ok(updated_files)
     }
 
     fn validate_project(&self, project_path: &Path) -> Result<()> {
         let composer_json = project_path.join(PHP_COMPOSER);
         if !composer_json.exists() {
-            return Err(anyhow!("composer.json not found. Not a valid Composer project."));
+            return Err(anyhow!(
+                "composer.json not found. Not a valid Composer project."
+            ));
         }
         Ok(())
     }
@@ -189,15 +196,19 @@ impl VersionUpdater for ComposerUpdater {
         project_path.join(PHP_COMPOSER).exists()
     }
 
-    fn preview_changes(&self, project_path: &Path, new_version: &str) -> Result<Vec<VersionChange>> {
+    fn preview_changes(
+        &self,
+        project_path: &Path,
+        new_version: &str,
+    ) -> Result<Vec<VersionChange>> {
         let mut changes = Vec::new();
-        
+
         // Preview composer.json change
         let composer_json = project_path.join("composer.json");
         let old_content = read_file_safe(&composer_json)?;
         let old_version = self.get_current_version(project_path)?;
         let new_content = self.update_composer_json_content(&old_content, new_version)?;
-        
+
         changes.push(VersionChange::new(
             composer_json,
             old_content,
@@ -205,21 +216,24 @@ impl VersionUpdater for ComposerUpdater {
             old_version.clone(),
             new_version.to_string(),
         ));
-        
+
         // Preview composer.lock change if it exists
         let composer_lock = project_path.join("composer.lock");
         if composer_lock.exists() {
             let lock_content = read_file_safe(&composer_lock)?;
             let mut lock_json: Value = serde_json::from_str(&lock_content)?;
-            
+
             if let Some(obj) = lock_json.as_object_mut() {
                 if obj.contains_key("version") {
-                    obj.insert("version".to_string(), Value::String(new_version.to_string()));
+                    obj.insert(
+                        "version".to_string(),
+                        Value::String(new_version.to_string()),
+                    );
                 }
             }
-            
+
             let new_lock_content = serde_json::to_string_pretty(&lock_json)?;
-            
+
             changes.push(VersionChange::new(
                 composer_lock,
                 lock_content,
@@ -228,7 +242,7 @@ impl VersionUpdater for ComposerUpdater {
                 new_version.to_string(),
             ));
         }
-        
+
         Ok(changes)
     }
 }
@@ -249,13 +263,17 @@ mod tests {
         fs::write(
             project_path.join(PHP_COMPOSER),
             r#"{"name": "vendor/package", "version": "1.0.0"}"#,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Act
         let updater = ComposerUpdater::new();
 
         // Assert
-        assert!(updater.can_handle(project_path), "Should detect composer.json");
+        assert!(
+            updater.can_handle(project_path),
+            "Should detect composer.json"
+        );
     }
 
     // TDD Test 2: Don't detect non-Composer projects
@@ -271,7 +289,10 @@ mod tests {
         let updater = ComposerUpdater::new();
 
         // Assert
-        assert!(!updater.can_handle(project_path), "Should not detect without composer.json");
+        assert!(
+            !updater.can_handle(project_path),
+            "Should not detect without composer.json"
+        );
     }
 
     // TDD Test 3: Validate project requires composer.json
@@ -284,7 +305,8 @@ mod tests {
         fs::write(
             project_path.join("composer.json"),
             r#"{"name": "vendor/package"}"#,
-        ).unwrap();
+        )
+        .unwrap();
         let updater = ComposerUpdater::new();
 
         // Act & Assert
@@ -324,7 +346,8 @@ mod tests {
                     "php": "^8.0"
                 }
             }"#,
-        ).unwrap();
+        )
+        .unwrap();
         let updater = ComposerUpdater::new();
 
         // Act
@@ -344,7 +367,8 @@ mod tests {
         fs::write(
             project_path.join("composer.json"),
             r#"{"name": "vendor/package"}"#,
-        ).unwrap();
+        )
+        .unwrap();
         let updater = ComposerUpdater::new();
 
         // Act
@@ -365,7 +389,8 @@ mod tests {
         fs::write(
             project_path.join("composer.json"),
             r#"{"name": "vendor/package", "version": "1.0.0"}"#,
-        ).unwrap();
+        )
+        .unwrap();
         let updater = ComposerUpdater::new();
 
         // Act
@@ -396,7 +421,8 @@ mod tests {
                     "symfony/console": "^6.0"
                 }
             }"#,
-        ).unwrap();
+        )
+        .unwrap();
         let updater = ComposerUpdater::new();
 
         // Act
@@ -405,7 +431,7 @@ mod tests {
         // Assert
         let content = fs::read_to_string(project_path.join("composer.json")).unwrap();
         let json: Value = serde_json::from_str(&content).unwrap();
-        
+
         assert_eq!(json["version"], "2.0.0");
         assert_eq!(json["name"], "vendor/package");
         assert_eq!(json["require"]["php"], "^8.0");
@@ -421,11 +447,9 @@ mod tests {
         fs::write(
             project_path.join("composer.json"),
             r#"{"name": "vendor/package", "version": "1.0.0"}"#,
-        ).unwrap();
-        fs::write(
-            project_path.join("composer.lock"),
-            r#"{"packages": []}"#,
-        ).unwrap();
+        )
+        .unwrap();
+        fs::write(project_path.join("composer.lock"), r#"{"packages": []}"#).unwrap();
         let updater = ComposerUpdater::new();
 
         // Act
@@ -447,7 +471,8 @@ mod tests {
         fs::write(
             project_path.join("composer.json"),
             r#"{"name": "vendor/package", "version": "1.0.0"}"#,
-        ).unwrap();
+        )
+        .unwrap();
         let updater = ComposerUpdater::new();
 
         // Act
@@ -476,7 +501,8 @@ mod tests {
         fs::write(
             project_path.join("composer.json"),
             r#"{"name": "vendor/package"}"#,
-        ).unwrap();
+        )
+        .unwrap();
         let updater = ComposerUpdater::new();
 
         // Act
@@ -496,7 +522,8 @@ mod tests {
         fs::write(
             project_path.join("composer.json"),
             r#"{"name": "vendor/package", "version": "1.0.0"}"#,
-        ).unwrap();
+        )
+        .unwrap();
         let updater = ComposerUpdater::new();
 
         // Act
@@ -505,9 +532,12 @@ mod tests {
         // Assert
         let backup = project_path.join("composer.json.autoversion.backup");
         assert!(backup.exists(), "Backup should be created");
-        
+
         let backup_content = fs::read_to_string(backup).unwrap();
-        assert!(backup_content.contains("1.0.0"), "Backup should contain old version");
+        assert!(
+            backup_content.contains("1.0.0"),
+            "Backup should contain old version"
+        );
     }
 
     // TDD Test 14: Handle malformed JSON
@@ -519,8 +549,9 @@ mod tests {
         // Arrange: Invalid JSON
         fs::write(
             project_path.join("composer.json"),
-            r#"{"name": "vendor/package", "version": }"#,  // Invalid
-        ).unwrap();
+            r#"{"name": "vendor/package", "version": }"#, // Invalid
+        )
+        .unwrap();
         let updater = ComposerUpdater::new();
 
         // Act
@@ -540,7 +571,8 @@ mod tests {
         fs::write(
             project_path.join("composer.json"),
             r#"{"name": "vendor/package", "version": "1.0.0"}"#,
-        ).unwrap();
+        )
+        .unwrap();
         let updater = ComposerUpdater::new();
 
         // Act

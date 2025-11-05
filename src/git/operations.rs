@@ -12,8 +12,13 @@ pub fn create_tag(tag_name: &str, version: &str) -> Result<()> {
 
 /// Create a git tag in a specific project path
 pub fn create_tag_in(project_path: &std::path::Path, tag_name: &str, version: &str) -> Result<()> {
-    let repo = Repository::open(project_path)
-        .map_err(|e| anyhow!("Failed to open git repository at {}: {}", project_path.display(), e))?;
+    let repo = Repository::open(project_path).map_err(|e| {
+        anyhow!(
+            "Failed to open git repository at {}: {}",
+            project_path.display(),
+            e
+        )
+    })?;
 
     // Get the current HEAD commit
     let head = repo.head()?;
@@ -42,18 +47,22 @@ pub fn commit_version_changes_in(
     version: &str,
     custom_message: Option<&str>,
 ) -> Result<()> {
-    let repo = Repository::open(project_path)
-        .map_err(|e| anyhow!("Failed to open git repository at {}: {}", project_path.display(), e))?;
+    let repo = Repository::open(project_path).map_err(|e| {
+        anyhow!(
+            "Failed to open git repository at {}: {}",
+            project_path.display(),
+            e
+        )
+    })?;
 
     let mut index = repo.index()?;
-    
+
     // Add specified files to the index
     for file_path in files {
         let path = Path::new(file_path);
         // If path is absolute, make it relative to project_path
         let relative_path = if path.is_absolute() {
-            path.strip_prefix(project_path)
-                .unwrap_or(path)
+            path.strip_prefix(project_path).unwrap_or(path)
         } else {
             path
         };
@@ -99,8 +108,13 @@ pub fn is_repository_clean() -> Result<bool> {
 
 /// Check if the repository at project_path is clean
 pub fn is_repository_clean_in(project_path: &std::path::Path) -> Result<bool> {
-    let repo = Repository::open(project_path)
-        .map_err(|e| anyhow!("Failed to open git repository at {}: {}", project_path.display(), e))?;
+    let repo = Repository::open(project_path).map_err(|e| {
+        anyhow!(
+            "Failed to open git repository at {}: {}",
+            project_path.display(),
+            e
+        )
+    })?;
 
     let mut opts = git2::StatusOptions::new();
     opts.include_untracked(true);
@@ -111,15 +125,16 @@ pub fn is_repository_clean_in(project_path: &std::path::Path) -> Result<bool> {
 /// Get git signature from configuration or create a fallback
 fn get_git_signature(repo: &Repository) -> Result<Signature<'_>> {
     let config = repo.config()?;
-    
-    let name = config.get_string("user.name")
+
+    let name = config
+        .get_string("user.name")
         .unwrap_or_else(|_| "Autoversion Action".to_string());
-    
-    let email = config.get_string("user.email")
+
+    let email = config
+        .get_string("user.email")
         .unwrap_or_else(|_| "autoversion@github.actions".to_string());
 
-    Signature::now(&name, &email)
-        .map_err(|e| anyhow!("Failed to create git signature: {}", e))
+    Signature::now(&name, &email).map_err(|e| anyhow!("Failed to create git signature: {}", e))
 }
 
 /// Check if a tag already exists
@@ -129,15 +144,20 @@ pub fn tag_exists(tag_name: &str) -> Result<bool> {
 
 /// Check if a tag exists in the repository at project_path
 pub fn tag_exists_in(project_path: &std::path::Path, tag_name: &str) -> Result<bool> {
-    let repo = Repository::open(project_path)
-        .map_err(|e| anyhow!("Failed to open git repository at {}: {}", project_path.display(), e))?;
+    let repo = Repository::open(project_path).map_err(|e| {
+        anyhow!(
+            "Failed to open git repository at {}: {}",
+            project_path.display(),
+            e
+        )
+    })?;
 
     let result = match repo.find_reference(&format!("refs/tags/{}", tag_name)) {
         Ok(_) => Ok(true),
         Err(e) if e.code() == git2::ErrorCode::NotFound => Ok(false),
         Err(e) => Err(anyhow!("Failed to check tag existence: {}", e)),
     };
-    
+
     result
 }
 
@@ -148,8 +168,13 @@ pub fn get_latest_tag() -> Result<Option<String>> {
 
 /// Get latest tag in repository at project_path
 pub fn get_latest_tag_in(project_path: &std::path::Path) -> Result<Option<String>> {
-    let repo = Repository::open(project_path)
-        .map_err(|e| anyhow!("Failed to open git repository at {}: {}", project_path.display(), e))?;
+    let repo = Repository::open(project_path).map_err(|e| {
+        anyhow!(
+            "Failed to open git repository at {}: {}",
+            project_path.display(),
+            e
+        )
+    })?;
 
     let tag_names = repo.tag_names(None)?;
     let mut tags = Vec::new();
@@ -171,8 +196,13 @@ pub fn delete_tag(tag_name: &str) -> Result<()> {
 
 /// Delete a git tag in a specific project path
 pub fn delete_tag_in(project_path: &std::path::Path, tag_name: &str) -> Result<()> {
-    let repo = Repository::open(project_path)
-        .map_err(|e| anyhow!("Failed to open git repository at {}: {}", project_path.display(), e))?;
+    let repo = Repository::open(project_path).map_err(|e| {
+        anyhow!(
+            "Failed to open git repository at {}: {}",
+            project_path.display(),
+            e
+        )
+    })?;
 
     // Check if tag exists
     if !tag_exists_in(project_path, tag_name)? {
@@ -193,8 +223,13 @@ pub fn revert_last_commit() -> Result<()> {
 
 /// Revert the last commit in a specific project path
 pub fn revert_last_commit_in(project_path: &std::path::Path) -> Result<()> {
-    let repo = Repository::open(project_path)
-        .map_err(|e| anyhow!("Failed to open git repository at {}: {}", project_path.display(), e))?;
+    let repo = Repository::open(project_path).map_err(|e| {
+        anyhow!(
+            "Failed to open git repository at {}: {}",
+            project_path.display(),
+            e
+        )
+    })?;
 
     // Get HEAD commit
     let head = repo.head()?;
@@ -218,8 +253,7 @@ pub fn revert_last_commit_in(project_path: &std::path::Path) -> Result<()> {
 /// Initialize a new git repository (for testing)
 #[cfg(test)]
 pub fn init_test_repo(path: &Path) -> Result<Repository> {
-    Repository::init(path)
-        .map_err(|e| anyhow!("Failed to initialize test repository: {}", e))
+    Repository::init(path).map_err(|e| anyhow!("Failed to initialize test repository: {}", e))
 }
 
 #[cfg(test)]
@@ -234,11 +268,11 @@ mod tests {
             println!("Skipping test: not in a git repository");
             return Ok(());
         }
-        
+
         // Simple test that verifies the functions don't crash
         // We can't easily test tag creation without affecting the actual repository
         assert!(tag_exists("non-existent-tag-12345").is_ok());
-        
+
         Ok(())
     }
 
@@ -249,10 +283,10 @@ mod tests {
             println!("Skipping test: not in a git repository");
             return Ok(());
         }
-        
+
         // Simple test that verifies the function doesn't crash
         assert!(is_repository_clean().is_ok());
-        
+
         Ok(())
     }
 }

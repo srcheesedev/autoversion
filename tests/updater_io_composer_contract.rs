@@ -1,5 +1,5 @@
 /// Contract test for Composer updater I/O operations
-/// 
+///
 /// This test validates that the ComposerUpdater:
 /// 1. Creates backup files before modification
 /// 2. Actually updates the composer.json content
@@ -26,7 +26,8 @@ fn composer_updater_creates_backups_and_updates_files() {
         "php": "^8.0"
     }
 }"#,
-    ).unwrap();
+    )
+    .unwrap();
 
     // Create composer.lock
     fs::write(
@@ -35,7 +36,8 @@ fn composer_updater_creates_backups_and_updates_files() {
     "packages": [],
     "version": "1.0.0"
 }"#,
-    ).unwrap();
+    )
+    .unwrap();
 
     let updater = ComposerUpdater::new();
 
@@ -45,12 +47,16 @@ fn composer_updater_creates_backups_and_updates_files() {
     // Assert: Operation succeeded
     assert!(result.is_ok(), "Update should succeed");
     let updated_files = result.unwrap();
-    assert_eq!(updated_files.len(), 2, "Should update both composer.json and composer.lock");
+    assert_eq!(
+        updated_files.len(),
+        2,
+        "Should update both composer.json and composer.lock"
+    );
 
     // Assert: Backups were created
     let json_backup = project_path.join("composer.json.autoversion.backup");
     let lock_backup = project_path.join("composer.lock.autoversion.backup");
-    
+
     assert!(json_backup.exists(), "composer.json backup should exist");
     assert!(lock_backup.exists(), "composer.lock backup should exist");
 
@@ -89,7 +95,8 @@ fn composer_updater_works_without_composer_lock() {
     fs::write(
         project_path.join("composer.json"),
         r#"{"name": "vendor/package", "version": "1.0.0"}"#,
-    ).unwrap();
+    )
+    .unwrap();
 
     let updater = ComposerUpdater::new();
 
@@ -97,7 +104,10 @@ fn composer_updater_works_without_composer_lock() {
     let result = updater.update_version(project_path, "2.0.0");
 
     // Assert
-    assert!(result.is_ok(), "Update should succeed without composer.lock");
+    assert!(
+        result.is_ok(),
+        "Update should succeed without composer.lock"
+    );
     let updated_files = result.unwrap();
     assert_eq!(
         updated_files.len(),
@@ -120,7 +130,10 @@ fn composer_updater_validates_composer_json_presence() {
 
     // Act & Assert: Validation should fail
     let result = updater.validate_project(project_path);
-    assert!(result.is_err(), "Should fail validation without composer.json");
+    assert!(
+        result.is_err(),
+        "Should fail validation without composer.json"
+    );
     assert!(
         result.unwrap_err().to_string().contains("composer.json"),
         "Error should mention composer.json"

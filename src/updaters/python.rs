@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Result};
-use std::path::{Path, PathBuf};
 use regex::Regex;
+use std::path::{Path, PathBuf};
 
-use super::traits::{VersionUpdater, VersionChange};
+use super::traits::{VersionChange, VersionUpdater};
 use crate::constants::manifests::{PYTHON_PYPROJECT, PYTHON_SETUP};
 use crate::utils::files::{backup_file, read_file_safe, write_file_safe};
 
@@ -107,12 +107,10 @@ use crate::utils::files::{backup_file, read_file_safe, write_file_safe};
 pub struct PythonUpdater;
 
 impl PythonUpdater {
-
     /// Create a new PythonUpdater instance.
     pub fn new() -> Self {
         Self
     }
-
 
     fn parse_pyproject_version(&self, content: &str) -> Option<String> {
         // Very small TOML scan for [project] or [tool.poetry]
@@ -152,13 +150,19 @@ impl PythonUpdater {
         let mut value: toml::Value = content.parse()?;
         if let Some(project) = value.get_mut("project") {
             if let Some(tbl) = project.as_table_mut() {
-                tbl.insert("version".to_string(), toml::Value::String(new_version.to_string()));
+                tbl.insert(
+                    "version".to_string(),
+                    toml::Value::String(new_version.to_string()),
+                );
             }
         }
         if let Some(tool) = value.get_mut("tool") {
             if let Some(poetry) = tool.get_mut("poetry") {
                 if let Some(tbl) = poetry.as_table_mut() {
-                    tbl.insert("version".to_string(), toml::Value::String(new_version.to_string()));
+                    tbl.insert(
+                        "version".to_string(),
+                        toml::Value::String(new_version.to_string()),
+                    );
                 }
             }
         }
@@ -191,7 +195,9 @@ impl VersionUpdater for PythonUpdater {
             }
         }
 
-        Err(anyhow!("No Python project version found (pyproject.toml or setup.py)"))
+        Err(anyhow!(
+            "No Python project version found (pyproject.toml or setup.py)"
+        ))
     }
 
     fn update_version(&self, project_path: &Path, new_version: &str) -> Result<Vec<String>> {
@@ -228,7 +234,9 @@ impl VersionUpdater for PythonUpdater {
         if pyproject.exists() || setup_py.exists() {
             Ok(())
         } else {
-            Err(anyhow!("No Python project files found (pyproject.toml, setup.py)"))
+            Err(anyhow!(
+                "No Python project files found (pyproject.toml, setup.py)"
+            ))
         }
     }
 
@@ -254,14 +262,24 @@ impl VersionUpdater for PythonUpdater {
         project_path.join(PYTHON_PYPROJECT).exists() || project_path.join(PYTHON_SETUP).exists()
     }
 
-    fn preview_changes(&self, project_path: &Path, new_version: &str) -> Result<Vec<VersionChange>> {
+    fn preview_changes(
+        &self,
+        project_path: &Path,
+        new_version: &str,
+    ) -> Result<Vec<VersionChange>> {
         let mut changes = Vec::new();
         let pyproject = project_path.join(PYTHON_PYPROJECT);
         if pyproject.exists() {
             let old = read_file_safe(&pyproject)?;
             let new_content = self.update_pyproject_content(&old, new_version)?;
             let old_version = self.get_current_version(project_path)?;
-            changes.push(VersionChange::new(pyproject, old, new_content, old_version.clone(), new_version.to_string()));
+            changes.push(VersionChange::new(
+                pyproject,
+                old,
+                new_content,
+                old_version.clone(),
+                new_version.to_string(),
+            ));
         }
 
         let setup_py = project_path.join("setup.py");
@@ -269,7 +287,13 @@ impl VersionUpdater for PythonUpdater {
             let old = read_file_safe(&setup_py)?;
             let new_content = self.update_setup_py_content(&old, new_version)?;
             let old_version = self.get_current_version(project_path)?;
-            changes.push(VersionChange::new(setup_py, old, new_content, old_version.clone(), new_version.to_string()));
+            changes.push(VersionChange::new(
+                setup_py,
+                old,
+                new_content,
+                old_version.clone(),
+                new_version.to_string(),
+            ));
         }
 
         Ok(changes)
@@ -279,14 +303,11 @@ impl VersionUpdater for PythonUpdater {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use std::fs;
+    use tempfile::TempDir;
 
     fn create_pyproject(dir: &std::path::Path, version: &str) -> anyhow::Result<()> {
-        let content = format!(
-            "[project]\nname = \"test\"\nversion = \"{}\"\n",
-            version
-        );
+        let content = format!("[project]\nname = \"test\"\nversion = \"{}\"\n", version);
         fs::write(dir.join(PYTHON_PYPROJECT), content)?;
         Ok(())
     }

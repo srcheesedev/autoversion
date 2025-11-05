@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 //! Autoversion - Universal semantic versioning automation
-//! 
+//!
 //! This library provides technology-agnostic semantic versioning automation
 //! for projects regardless of their tech stack (npm, Cargo, Maven, Python, etc.)
 
@@ -12,6 +12,6 @@ pub mod rollback;
 pub mod updaters;
 pub mod utils;
 
-pub use core::semver::VersionBumper;
 pub use core::detector::TechnologyDetector;
+pub use core::semver::VersionBumper;
 pub use updaters::factory::UpdaterFactory;

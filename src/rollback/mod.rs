@@ -1,20 +1,19 @@
+use crate::constants::BACKUP_FILE_EXTENSION;
+use crate::git::operations::{delete_tag_in, revert_last_commit_in, tag_exists_in};
 /// Rollback module for reverting version bump operations
-/// 
+///
 /// Provides functionality to safely revert version changes by:
 /// - Restoring files from backup (.autoversion.backup)
 /// - Deleting git tags
 /// - Optionally reverting git commits
-/// 
+///
 /// # Safety
 /// - Verifies backups exist before attempting restore
 /// - Atomic operations where possible
 /// - Clear error messages for each step
-
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
-use crate::constants::BACKUP_FILE_EXTENSION;
-use crate::git::operations::{delete_tag_in, revert_last_commit_in, tag_exists_in};
 
 /// Options for rollback operation
 #[derive(Debug, Clone)]
@@ -43,13 +42,11 @@ impl Default for RollbackOptions {
 /// Find all backup files in a directory
 pub fn find_backup_files(project_path: &Path) -> Result<Vec<PathBuf>> {
     let mut backups = Vec::new();
-    
-    for entry in fs::read_dir(project_path)
-        .context("Failed to read project directory")?
-    {
+
+    for entry in fs::read_dir(project_path).context("Failed to read project directory")? {
         let entry = entry?;
         let path = entry.path();
-        
+
         if path.is_file() {
             if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
                 if name.ends_with(BACKUP_FILE_EXTENSION) {
@@ -58,7 +55,7 @@ pub fn find_backup_files(project_path: &Path) -> Result<Vec<PathBuf>> {
             }
         }
     }
-    
+
     Ok(backups)
 }
 
@@ -67,65 +64,69 @@ pub fn restore_from_backup(backup_path: &Path) -> Result<PathBuf> {
     if !backup_path.exists() {
         anyhow::bail!("Backup file does not exist: {}", backup_path.display());
     }
-    
+
     // Determine original file path by removing backup extension
-    let original_path = backup_path.to_str()
+    let original_path = backup_path
+        .to_str()
         .and_then(|s| s.strip_suffix(BACKUP_FILE_EXTENSION))
         .map(PathBuf::from)
         .context("Failed to determine original file path")?;
-    
+
     // Copy backup to original location
-    fs::copy(backup_path, &original_path)
-        .context(format!("Failed to restore {} from backup", original_path.display()))?;
-    
+    fs::copy(backup_path, &original_path).context(format!(
+        "Failed to restore {} from backup",
+        original_path.display()
+    ))?;
+
     println!("✅ Restored: {}", original_path.display());
-    
+
     Ok(original_path)
 }
 
 /// Delete backup file after successful restore
 pub fn delete_backup(backup_path: &Path) -> Result<()> {
-    fs::remove_file(backup_path)
-        .context(format!("Failed to delete backup: {}", backup_path.display()))?;
-    
+    fs::remove_file(backup_path).context(format!(
+        "Failed to delete backup: {}",
+        backup_path.display()
+    ))?;
+
     println!("🗑️  Deleted backup: {}", backup_path.display());
-    
+
     Ok(())
 }
 
 /// Rollback version changes
 pub fn rollback(project_path: &Path, options: &RollbackOptions) -> Result<Vec<PathBuf>> {
     let mut restored_files = Vec::new();
-    
+
     // Find backup files
     let backups = find_backup_files(project_path)?;
-    
+
     if backups.is_empty() {
         anyhow::bail!("No backup files found in {}", project_path.display());
     }
-    
+
     println!("📦 Found {} backup file(s)", backups.len());
-    
+
     // Restore files if requested
     if options.restore_files {
         for backup in &backups {
             let restored = restore_from_backup(backup)?;
             restored_files.push(restored);
-            
+
             // Delete backup after successful restore
             delete_backup(backup)?;
         }
     }
-    
+
     // Handle git operations (tags, commits)
     if options.delete_tags {
         if let Some(version) = &options.version {
             let tag_name = format!("v{}", version);
-            
+
             // Check if tag exists before trying to delete
             if tag_exists_in(project_path, &tag_name)? {
-                delete_tag_in(project_path, &tag_name)
-                    .context("Failed to delete git tag")?;
+                delete_tag_in(project_path, &tag_name).context("Failed to delete git tag")?;
             } else {
                 println!("ℹ️  Tag {} does not exist, skipping deletion", tag_name);
             }
@@ -133,12 +134,11 @@ pub fn rollback(project_path: &Path, options: &RollbackOptions) -> Result<Vec<Pa
             println!("⚠️  No version specified, skipping tag deletion");
         }
     }
-    
+
     if options.revert_commits {
-        revert_last_commit_in(project_path)
-            .context("Failed to revert last commit")?;
+        revert_last_commit_in(project_path).context("Failed to revert last commit")?;
     }
-    
+
     Ok(restored_files)
 }
 
@@ -169,7 +169,10 @@ mod tests {
 
         let backups = find_backup_files(temp.path()).unwrap();
         assert_eq!(backups.len(), 1);
-        assert!(backups[0].to_str().unwrap().ends_with(".autoversion.backup"));
+        assert!(backups[0]
+            .to_str()
+            .unwrap()
+            .ends_with(".autoversion.backup"));
     }
 
     #[test]
@@ -214,9 +217,9 @@ mod tests {
 
         // Restore from backup
         let restored = restore_from_backup(&backup).unwrap();
-        
+
         assert_eq!(restored, original);
-        
+
         // Verify content was restored
         let content = fs::read_to_string(&original).unwrap();
         assert!(content.contains("1.0.0"));
@@ -240,9 +243,9 @@ mod tests {
         create_test_file(&backup, "test content");
 
         assert!(backup.exists());
-        
+
         delete_backup(&backup).unwrap();
-        
+
         assert!(!backup.exists());
     }
 
@@ -269,10 +272,10 @@ mod tests {
 
         assert_eq!(restored.len(), 1);
         assert_eq!(restored[0], original);
-        
+
         // Backup should be deleted
         assert!(!backup.exists());
-        
+
         // Original should have old content
         let content = fs::read_to_string(&original).unwrap();
         assert!(content.contains("1.0.0"));
@@ -285,17 +288,23 @@ mod tests {
 
         let result = rollback(temp.path(), &options);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("No backup files found"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("No backup files found"));
     }
 
     #[test]
     fn test_rollback_multiple_files() {
         let temp = TempDir::new().unwrap();
-        
+
         // Create multiple original files
         create_test_file(&temp.path().join("package.json"), r#"{"version": "2.0.0"}"#);
-        create_test_file(&temp.path().join("package-lock.json"), r#"{"version": "2.0.0"}"#);
-        
+        create_test_file(
+            &temp.path().join("package-lock.json"),
+            r#"{"version": "2.0.0"}"#,
+        );
+
         // Create backups
         create_test_file(
             &temp.path().join("package.json.autoversion.backup"),
@@ -310,11 +319,11 @@ mod tests {
         let restored = rollback(temp.path(), &options).unwrap();
 
         assert_eq!(restored.len(), 2);
-        
+
         // Both should be restored
         let content1 = fs::read_to_string(temp.path().join("package.json")).unwrap();
         let content2 = fs::read_to_string(temp.path().join("package-lock.json")).unwrap();
-        
+
         assert!(content1.contains("1.0.0"));
         assert!(content2.contains("1.0.0"));
     }
@@ -341,15 +350,15 @@ mod tests {
 
     #[test]
     fn test_rollback_with_git_tag_deletion() {
-        use crate::git::operations::{init_test_repo, create_tag_in};
+        use crate::git::operations::{create_tag_in, init_test_repo};
         use git2::Signature;
-        
+
         let temp = TempDir::new().unwrap();
-        
+
         // Initialize git repo and create initial commit
         let repo = init_test_repo(temp.path()).unwrap();
         let sig = Signature::now("Test", "test@example.com").unwrap();
-        
+
         // Create initial file and commit
         create_test_file(&temp.path().join("VERSION"), "1.0.0");
         let mut index = repo.index().unwrap();
@@ -357,15 +366,16 @@ mod tests {
         index.write().unwrap();
         let tree_id = index.write_tree().unwrap();
         let tree = repo.find_tree(tree_id).unwrap();
-        repo.commit(Some("HEAD"), &sig, &sig, "Initial commit", &tree, &[]).unwrap();
-        
+        repo.commit(Some("HEAD"), &sig, &sig, "Initial commit", &tree, &[])
+            .unwrap();
+
         // Update file and create backup
         create_test_file(&temp.path().join("VERSION"), "2.0.0");
         create_test_file(&temp.path().join("VERSION.autoversion.backup"), "1.0.0");
-        
+
         // Create a tag
         create_tag_in(temp.path(), "v2.0.0", "2.0.0").unwrap();
-        
+
         // Rollback with tag deletion
         let options = RollbackOptions {
             restore_files: true,
@@ -373,36 +383,37 @@ mod tests {
             revert_commits: false,
             version: Some("2.0.0".to_string()),
         };
-        
+
         let restored = rollback(temp.path(), &options).unwrap();
         assert_eq!(restored.len(), 1);
-        
+
         // Verify tag was deleted
         assert!(!tag_exists_in(temp.path(), "v2.0.0").unwrap());
     }
 
     #[test]
     fn test_rollback_with_commit_reversion() {
-        use crate::git::operations::{init_test_repo, commit_version_changes_in};
+        use crate::git::operations::{commit_version_changes_in, init_test_repo};
         use git2::Signature;
-        
+
         let temp = TempDir::new().unwrap();
-        
+
         // Initialize git repo and create initial commit
         let repo = init_test_repo(temp.path()).unwrap();
         let sig = Signature::now("Test", "test@example.com").unwrap();
         let tree_id = repo.index().unwrap().write_tree().unwrap();
         let tree = repo.find_tree(tree_id).unwrap();
-        repo.commit(Some("HEAD"), &sig, &sig, "Initial commit", &tree, &[]).unwrap();
-        
+        repo.commit(Some("HEAD"), &sig, &sig, "Initial commit", &tree, &[])
+            .unwrap();
+
         // Create a file for version bump
         create_test_file(&temp.path().join("VERSION"), "1.0.0");
         create_test_file(&temp.path().join("VERSION.autoversion.backup"), "1.0.0");
-        
+
         // Make a version bump commit
         let version_file = temp.path().join("VERSION").to_string_lossy().to_string();
         commit_version_changes_in(temp.path(), &[version_file], "2.0.0", None).unwrap();
-        
+
         // Now rollback with commit reversion
         let options = RollbackOptions {
             restore_files: false,
@@ -410,7 +421,7 @@ mod tests {
             revert_commits: true,
             version: None,
         };
-        
+
         let result = rollback(temp.path(), &options);
         assert!(result.is_ok());
     }
@@ -418,19 +429,19 @@ mod tests {
     #[test]
     fn test_rollback_without_version_skips_tag_deletion() {
         let temp = TempDir::new().unwrap();
-        
+
         // Create backup
         create_test_file(&temp.path().join("VERSION"), "2.0.0");
         create_test_file(&temp.path().join("VERSION.autoversion.backup"), "1.0.0");
-        
+
         // Rollback with delete_tags but no version specified
         let options = RollbackOptions {
             restore_files: true,
-            delete_tags: true,  // Requested but will be skipped
+            delete_tags: true, // Requested but will be skipped
             revert_commits: false,
-            version: None,  // No version specified
+            version: None, // No version specified
         };
-        
+
         let restored = rollback(temp.path(), &options).unwrap();
         assert_eq!(restored.len(), 1);
         // Test passes if no panic occurs (tag deletion skipped gracefully)

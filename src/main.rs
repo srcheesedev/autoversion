@@ -12,10 +12,10 @@ mod rollback;
 mod updaters;
 mod utils;
 
-use cli::args::Args;
-use cli::output::ActionOutput;
-use cli::info::show_project_info;
 use cli::analyze::analyze_commits;
+use cli::args::Args;
+use cli::info::show_project_info;
+use cli::output::ActionOutput;
 use core::detector::TechnologyDetector;
 use core::semver::VersionBumper;
 use updaters::factory::UpdaterFactory;
@@ -23,21 +23,21 @@ use utils::security::validate_project_path;
 
 fn main() -> Result<()> {
     let args = Args::parse();
-    
+
     // Handle info-only commands
     if args.show_info {
         return show_project_info(&args.path, args.verbose);
     }
-    
+
     if args.analyze {
         return analyze_commits(&args.path, args.verbose);
     }
-    
+
     // Handle rollback command
     if args.rollback {
         return execute_rollback(&args);
     }
-    
+
     // Validate and execute version bump
     let validated_path = validate_project_path(&args.path)?;
     execute_version_bump(&args, &validated_path)
@@ -109,7 +109,7 @@ fn handle_git_operations(
             args.commit_message.as_deref(),
         )?;
     }
-    
+
     if args.create_tag {
         let tag_name = format!("{}{}", args.tag_prefix, new_version);
         git::operations::create_tag_in(project_path, &tag_name, new_version)?;
@@ -127,7 +127,7 @@ fn handle_git_operations(
 /// 4. Display results
 fn execute_rollback(args: &Args) -> Result<()> {
     let validated_path = validate_project_path(&args.path)?;
-    
+
     // Build rollback options from CLI args
     let options = rollback::RollbackOptions {
         restore_files: !args.rollback_git_only,
@@ -135,10 +135,10 @@ fn execute_rollback(args: &Args) -> Result<()> {
         revert_commits: args.rollback_revert_commit,
         version: args.rollback_version.clone(),
     };
-    
+
     // Execute rollback
     let restored_files = rollback::rollback(&validated_path, &options)?;
-    
+
     // Display results
     if restored_files.is_empty() {
         println!("ℹ️  No backup files found to restore");
@@ -149,15 +149,18 @@ fn execute_rollback(args: &Args) -> Result<()> {
             println!("   - {}", file.display());
         }
     }
-    
+
     if options.delete_tags && options.version.is_some() {
-        println!("🏷️  Deleted git tag: v{}", options.version.as_ref().unwrap());
+        println!(
+            "🏷️  Deleted git tag: v{}",
+            options.version.as_ref().unwrap()
+        );
     }
-    
+
     if options.revert_commits {
         println!("↩️  Reverted last git commit");
     }
-    
+
     Ok(())
 }
 
@@ -172,43 +175,49 @@ fn execute_rollback(args: &Args) -> Result<()> {
 /// 6. Write outputs
 fn execute_version_bump(args: &Args, project_path: &Path) -> Result<()> {
     let mut output = ActionOutput::new();
-    
+
     // Detect technology
     let technology = detect_technology(&args.technology, project_path)?;
     output.set_technology(&technology);
     output.set_tag_prefix(&args.tag_prefix);
-    
+
     // Create updater and get current version
     let updater = UpdaterFactory::create(&technology)?;
     let current_version = updater.get_current_version(project_path)?;
     output.set_previous_version(&current_version);
-    
+
     // Calculate new version
-    let (new_version, bump_type) = calculate_new_version(
-        &current_version,
-        &args.bump_type,
-        project_path,
-    )?;
+    let (new_version, bump_type) =
+        calculate_new_version(&current_version, &args.bump_type, project_path)?;
     output.set_version(&new_version);
     output.set_version_type(&bump_type);
-    
+
     // Execute updates if not dry run
     if !args.dry_run {
         let updated_files = updater.update_version(project_path, &new_version)?;
         output.set_files_updated(&updated_files);
-        handle_git_operations(args, project_path, &new_version, &updated_files, &mut output)?;
+        handle_git_operations(
+            args,
+            project_path,
+            &new_version,
+            &updated_files,
+            &mut output,
+        )?;
     }
-    
+
     // Write outputs and display results
     output.write_outputs()?;
     print_results(&current_version, &new_version, args.dry_run);
-    
+
     Ok(())
 }
 
 /// Prints the results of the version bump operation
 fn print_results(current_version: &str, new_version: &str, dry_run: bool) {
-    println!("✅ Version updated from {} to {}", current_version, new_version);
+    println!(
+        "✅ Version updated from {} to {}",
+        current_version, new_version
+    );
     if dry_run {
         println!("🔍 Dry run mode - no changes made");
     }
@@ -217,20 +226,20 @@ fn print_results(current_version: &str, new_version: &str, dry_run: bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use std::fs;
+    use tempfile::TempDir;
 
     #[test]
     fn test_detect_technology_auto() -> Result<()> {
         let temp = TempDir::new()?;
         let project_path = temp.path();
-        
+
         // Create a package.json for NPM detection
         fs::write(project_path.join("package.json"), r#"{"version": "1.0.0"}"#)?;
-        
+
         let tech = detect_technology("auto", project_path)?;
         assert_eq!(tech, "npm");
-        
+
         Ok(())
     }
 
@@ -238,10 +247,10 @@ mod tests {
     fn test_detect_technology_explicit() -> Result<()> {
         let temp = TempDir::new()?;
         let project_path = temp.path();
-        
+
         let tech = detect_technology("cargo", project_path)?;
         assert_eq!(tech, "cargo");
-        
+
         Ok(())
     }
 
@@ -249,11 +258,11 @@ mod tests {
     fn test_calculate_new_version_manual() -> Result<()> {
         let temp = TempDir::new()?;
         let project_path = temp.path();
-        
+
         let (new_version, bump_type) = calculate_new_version("1.2.3", "patch", project_path)?;
         assert_eq!(new_version, "1.2.4");
         assert_eq!(bump_type, "patch");
-        
+
         Ok(())
     }
 
@@ -261,11 +270,11 @@ mod tests {
     fn test_calculate_new_version_major() -> Result<()> {
         let temp = TempDir::new()?;
         let project_path = temp.path();
-        
+
         let (new_version, bump_type) = calculate_new_version("1.2.3", "major", project_path)?;
         assert_eq!(new_version, "2.0.0");
         assert_eq!(bump_type, "major");
-        
+
         Ok(())
     }
 
@@ -273,11 +282,11 @@ mod tests {
     fn test_calculate_new_version_minor() -> Result<()> {
         let temp = TempDir::new()?;
         let project_path = temp.path();
-        
+
         let (new_version, bump_type) = calculate_new_version("1.2.3", "minor", project_path)?;
         assert_eq!(new_version, "1.3.0");
         assert_eq!(bump_type, "minor");
-        
+
         Ok(())
     }
 }

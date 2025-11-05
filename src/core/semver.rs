@@ -30,7 +30,10 @@ impl std::str::FromStr for BumpType {
             "major" => Ok(BumpType::Major),
             "minor" => Ok(BumpType::Minor),
             "patch" => Ok(BumpType::Patch),
-            _ => Err(anyhow!("Invalid bump type: {}. Valid options: major, minor, patch", s)),
+            _ => Err(anyhow!(
+                "Invalid bump type: {}. Valid options: major, minor, patch",
+                s
+            )),
         }
     }
 }
@@ -68,29 +71,35 @@ impl VersionBumper {
     /// Automatically determine bump type based on commit history
     pub fn auto_bump(&self, current_version: &str, repo_path: &Path) -> Result<(String, String)> {
         let version = self.parse_version(current_version)?;
-        
+
         // Analyze commits since last version tag
-        let bump_type = self.commit_analyzer.analyze_commits_since_version(repo_path, &version)?;
-        
+        let bump_type = self
+            .commit_analyzer
+            .analyze_commits_since_version(repo_path, &version)?;
+
         let new_version = self.apply_bump(&version, &bump_type)?;
-        
+
         Ok((new_version.to_string(), bump_type.to_string()))
     }
 
     /// Manually bump version by specified type
-    pub fn manual_bump(&self, current_version: &str, bump_type_str: &str) -> Result<(String, String)> {
+    pub fn manual_bump(
+        &self,
+        current_version: &str,
+        bump_type_str: &str,
+    ) -> Result<(String, String)> {
         let version = self.parse_version(current_version)?;
         let bump_type: BumpType = bump_type_str.parse()?;
-        
+
         let new_version = self.apply_bump(&version, &bump_type)?;
-        
+
         Ok((new_version.to_string(), bump_type.to_string()))
     }
 
     /// Apply a bump type to a version
     fn apply_bump(&self, version: &Version, bump_type: &BumpType) -> Result<Version> {
         let mut new_version = version.clone();
-        
+
         match bump_type {
             BumpType::Major => {
                 new_version.major += 1;
@@ -109,7 +118,7 @@ impl VersionBumper {
         // Clear pre-release and build metadata for clean releases
         new_version.pre = semver::Prerelease::EMPTY;
         new_version.build = semver::BuildMetadata::EMPTY;
-        
+
         Ok(new_version)
     }
 
@@ -142,17 +151,20 @@ mod tests {
     #[test]
     fn test_parse_version_clean() {
         let bumper = VersionBumper::new();
-        
+
         assert_eq!(bumper.parse_version("1.2.3").unwrap().to_string(), "1.2.3");
         assert_eq!(bumper.parse_version("v1.2.3").unwrap().to_string(), "1.2.3");
         assert_eq!(bumper.parse_version("=1.2.3").unwrap().to_string(), "1.2.3");
-        assert_eq!(bumper.parse_version(" 1.2.3 ").unwrap().to_string(), "1.2.3");
+        assert_eq!(
+            bumper.parse_version(" 1.2.3 ").unwrap().to_string(),
+            "1.2.3"
+        );
     }
 
     #[test]
     fn test_parse_version_invalid() {
         let bumper = VersionBumper::new();
-        
+
         assert!(bumper.parse_version("1.2").is_err());
         assert!(bumper.parse_version("1.2.3.4").is_err());
         assert!(bumper.parse_version("not-a-version").is_err());
@@ -162,7 +174,7 @@ mod tests {
     fn test_manual_bump_patch() {
         let bumper = VersionBumper::new();
         let (new_version, bump_type) = bumper.manual_bump("1.2.3", "patch").unwrap();
-        
+
         assert_eq!(new_version, "1.2.4");
         assert_eq!(bump_type, "patch");
     }
@@ -171,7 +183,7 @@ mod tests {
     fn test_manual_bump_minor() {
         let bumper = VersionBumper::new();
         let (new_version, bump_type) = bumper.manual_bump("1.2.3", "minor").unwrap();
-        
+
         assert_eq!(new_version, "1.3.0");
         assert_eq!(bump_type, "minor");
     }
@@ -180,7 +192,7 @@ mod tests {
     fn test_manual_bump_major() {
         let bumper = VersionBumper::new();
         let (new_version, bump_type) = bumper.manual_bump("1.2.3", "major").unwrap();
-        
+
         assert_eq!(new_version, "2.0.0");
         assert_eq!(bump_type, "major");
     }
@@ -188,7 +200,7 @@ mod tests {
     #[test]
     fn test_is_greater() {
         let bumper = VersionBumper::new();
-        
+
         assert!(bumper.is_greater("1.2.4", "1.2.3").unwrap());
         assert!(bumper.is_greater("1.3.0", "1.2.3").unwrap());
         assert!(bumper.is_greater("2.0.0", "1.2.3").unwrap());
@@ -198,7 +210,7 @@ mod tests {
     #[test]
     fn test_preview_bump() {
         let bumper = VersionBumper::new();
-        
+
         assert_eq!(bumper.preview_bump("1.2.3", "patch").unwrap(), "1.2.4");
         assert_eq!(bumper.preview_bump("1.2.3", "minor").unwrap(), "1.3.0");
         assert_eq!(bumper.preview_bump("1.2.3", "major").unwrap(), "2.0.0");
@@ -210,7 +222,7 @@ mod tests {
         assert_eq!("minor".parse::<BumpType>().unwrap(), BumpType::Minor);
         assert_eq!("patch".parse::<BumpType>().unwrap(), BumpType::Patch);
         assert_eq!("MAJOR".parse::<BumpType>().unwrap(), BumpType::Major);
-        
+
         assert!("invalid".parse::<BumpType>().is_err());
     }
 
@@ -218,21 +230,21 @@ mod tests {
     fn test_prerelease_clearing() {
         let bumper = VersionBumper::new();
         let (new_version, _) = bumper.manual_bump("1.2.3-alpha.1", "patch").unwrap();
-        
+
         assert_eq!(new_version, "1.2.4");
     }
 
     #[test]
     fn test_maven_snapshot_clearing() {
         let bumper = VersionBumper::new();
-        
+
         // Maven SNAPSHOT versions should be parsed and cleared
         let (new_version, _) = bumper.manual_bump("1.2.3-SNAPSHOT", "patch").unwrap();
         assert_eq!(new_version, "1.2.4");
-        
+
         let (new_version, _) = bumper.manual_bump("1.2.3-SNAPSHOT", "minor").unwrap();
         assert_eq!(new_version, "1.3.0");
-        
+
         let (new_version, _) = bumper.manual_bump("1.2.3-SNAPSHOT", "major").unwrap();
         assert_eq!(new_version, "2.0.0");
     }

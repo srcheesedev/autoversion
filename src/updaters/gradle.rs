@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use regex::Regex;
 use std::path::{Path, PathBuf};
 
-use super::traits::{VersionUpdater, VersionChange};
+use super::traits::{VersionChange, VersionUpdater};
 use crate::constants::manifests::{GRADLE_BUILD, GRADLE_BUILD_KTS, GRADLE_PROPERTIES};
 use crate::utils::files::{backup_file, read_file_safe, write_file_safe};
 
@@ -100,25 +100,25 @@ impl GradleUpdater {
     /// Find Gradle build files in the project
     fn find_gradle_files(&self, project_path: &Path) -> Vec<PathBuf> {
         let mut files = Vec::new();
-        
+
         // Check gradle.properties first (most common for version)
         let props = project_path.join(GRADLE_PROPERTIES);
         if props.exists() {
             files.push(props);
         }
-        
+
         // Check build.gradle (Groovy)
         let groovy = project_path.join(GRADLE_BUILD);
         if groovy.exists() {
             files.push(groovy);
         }
-        
+
         // Check build.gradle.kts (Kotlin)
         let kotlin = project_path.join(GRADLE_BUILD_KTS);
         if kotlin.exists() {
             files.push(kotlin);
         }
-        
+
         files
     }
 
@@ -150,11 +150,13 @@ impl GradleUpdater {
 
     /// Update version in gradle.properties
     fn update_properties_content(&self, content: &str, new_version: &str) -> Result<String> {
-        let re = Regex::new(r"(?m)^version\s*=\s*.+$")
-            .map_err(|e| anyhow!("Regex error: {}", e))?;
-        
+        let re =
+            Regex::new(r"(?m)^version\s*=\s*.+$").map_err(|e| anyhow!("Regex error: {}", e))?;
+
         if re.is_match(content) {
-            Ok(re.replace(content, format!("version={}", new_version)).to_string())
+            Ok(re
+                .replace(content, format!("version={}", new_version))
+                .to_string())
         } else {
             Err(anyhow!("No version property found in gradle.properties"))
         }
@@ -164,11 +166,14 @@ impl GradleUpdater {
     fn update_groovy_content(&self, content: &str, new_version: &str) -> Result<String> {
         let re = Regex::new(r#"(?m)^(\s*version\s*=?\s*)['"]([^'"]+)['"]"#)
             .map_err(|e| anyhow!("Regex error: {}", e))?;
-        
+
         if let Some(caps) = re.captures(content) {
-            let quote = if caps.get(0).unwrap().as_str().contains('\'') { '\'' } else { '"' };
-            let replacement = format!("{}{}{}{}",
-                &caps[1], quote, new_version, quote);
+            let quote = if caps.get(0).unwrap().as_str().contains('\'') {
+                '\''
+            } else {
+                '"'
+            };
+            let replacement = format!("{}{}{}{}", &caps[1], quote, new_version, quote);
             Ok(re.replace(content, replacement).to_string())
         } else {
             Err(anyhow!("No version declaration found in build.gradle"))
@@ -179,9 +184,11 @@ impl GradleUpdater {
     fn update_kotlin_content(&self, content: &str, new_version: &str) -> Result<String> {
         let re = Regex::new(r#"(?m)^(\s*version\s*=\s*)"([^"]+)""#)
             .map_err(|e| anyhow!("Regex error: {}", e))?;
-        
+
         if re.is_match(content) {
-            Ok(re.replace(content, format!("${{1}}\"{}\"", new_version)).to_string())
+            Ok(re
+                .replace(content, format!("${{1}}\"{}\"", new_version))
+                .to_string())
         } else {
             Err(anyhow!("No version declaration found in build.gradle.kts"))
         }
@@ -197,59 +204,65 @@ impl Default for GradleUpdater {
 impl VersionUpdater for GradleUpdater {
     fn get_current_version(&self, project_path: &Path) -> Result<String> {
         let files = self.find_gradle_files(project_path);
-        
+
         for file in files {
             let content = read_file_safe(&file)?;
             let filename = file.file_name().unwrap().to_str().unwrap();
-            
+
             let version = match filename {
                 name if name == GRADLE_PROPERTIES => self.extract_version_from_properties(&content),
                 name if name == GRADLE_BUILD => self.extract_version_from_groovy(&content),
                 name if name == GRADLE_BUILD_KTS => self.extract_version_from_kotlin(&content),
                 _ => None,
             };
-            
+
             if let Some(v) = version {
                 return Ok(v);
             }
         }
-        
+
         Err(anyhow!("No version found in Gradle files"))
     }
 
     fn update_version(&self, project_path: &Path, new_version: &str) -> Result<Vec<String>> {
         let files = self.find_gradle_files(project_path);
         let mut updated = Vec::new();
-        
+
         for file in files {
             let content = read_file_safe(&file)?;
             let filename = file.file_name().unwrap().to_str().unwrap();
-            
+
             let new_content = match filename {
-                name if name == GRADLE_PROPERTIES => self.update_properties_content(&content, new_version),
+                name if name == GRADLE_PROPERTIES => {
+                    self.update_properties_content(&content, new_version)
+                }
                 name if name == GRADLE_BUILD => self.update_groovy_content(&content, new_version),
-                name if name == GRADLE_BUILD_KTS => self.update_kotlin_content(&content, new_version),
+                name if name == GRADLE_BUILD_KTS => {
+                    self.update_kotlin_content(&content, new_version)
+                }
                 _ => continue,
             };
-            
+
             if let Ok(new_content) = new_content {
                 backup_file(&file)?;
                 write_file_safe(&file, &new_content)?;
                 updated.push(file.display().to_string());
             }
         }
-        
+
         if updated.is_empty() {
             return Err(anyhow!("No Gradle files were updated"));
         }
-        
+
         Ok(updated)
     }
 
     fn validate_project(&self, project_path: &Path) -> Result<()> {
         let files = self.find_gradle_files(project_path);
         if files.is_empty() {
-            return Err(anyhow!("No Gradle files found. Not a valid Gradle project."));
+            return Err(anyhow!(
+                "No Gradle files found. Not a valid Gradle project."
+            ));
         }
         Ok(())
     }
@@ -264,17 +277,17 @@ impl VersionUpdater for GradleUpdater {
         if props.exists() {
             return Ok(props);
         }
-        
+
         let groovy = project_path.join(GRADLE_BUILD);
         if groovy.exists() {
             return Ok(groovy);
         }
-        
+
         let kotlin = project_path.join(GRADLE_BUILD_KTS);
         if kotlin.exists() {
             return Ok(kotlin);
         }
-        
+
         Err(anyhow!("No Gradle files found"))
     }
 
@@ -282,21 +295,29 @@ impl VersionUpdater for GradleUpdater {
         !self.find_gradle_files(project_path).is_empty()
     }
 
-    fn preview_changes(&self, project_path: &Path, new_version: &str) -> Result<Vec<VersionChange>> {
+    fn preview_changes(
+        &self,
+        project_path: &Path,
+        new_version: &str,
+    ) -> Result<Vec<VersionChange>> {
         let mut changes = Vec::new();
         let files = self.find_gradle_files(project_path);
-        
+
         for file in files {
             let content = read_file_safe(&file)?;
             let filename = file.file_name().unwrap().to_str().unwrap();
-            
+
             let new_content = match filename {
-                name if name == GRADLE_PROPERTIES => self.update_properties_content(&content, new_version),
+                name if name == GRADLE_PROPERTIES => {
+                    self.update_properties_content(&content, new_version)
+                }
                 name if name == GRADLE_BUILD => self.update_groovy_content(&content, new_version),
-                name if name == GRADLE_BUILD_KTS => self.update_kotlin_content(&content, new_version),
+                name if name == GRADLE_BUILD_KTS => {
+                    self.update_kotlin_content(&content, new_version)
+                }
                 _ => continue,
             };
-            
+
             if let Ok(new_content) = new_content {
                 let old_version = self.get_current_version(project_path)?;
                 changes.push(VersionChange::new(
@@ -308,7 +329,7 @@ impl VersionUpdater for GradleUpdater {
                 ));
             }
         }
-        
+
         Ok(changes)
     }
 }
@@ -324,13 +345,13 @@ mod tests {
     fn test_can_handle_with_gradle_files() {
         let temp_dir = TempDir::new().unwrap();
         let project_path = temp_dir.path();
-        
+
         // Arrange: Create build.gradle
         fs::write(project_path.join(GRADLE_BUILD), "version = '1.0.0'").unwrap();
-        
+
         // Act
         let updater = GradleUpdater::new();
-        
+
         // Assert
         assert!(updater.can_handle(project_path));
     }
@@ -340,10 +361,10 @@ mod tests {
     fn test_cannot_handle_without_gradle_files() {
         let temp_dir = TempDir::new().unwrap();
         let project_path = temp_dir.path();
-        
+
         // Act
         let updater = GradleUpdater::new();
-        
+
         // Assert
         assert!(!updater.can_handle(project_path));
     }
@@ -353,17 +374,14 @@ mod tests {
     fn test_get_version_from_properties() {
         let temp_dir = TempDir::new().unwrap();
         let project_path = temp_dir.path();
-        
+
         // Arrange
-        fs::write(
-            project_path.join(GRADLE_PROPERTIES),
-            "version=1.2.3\n"
-        ).unwrap();
-        
+        fs::write(project_path.join(GRADLE_PROPERTIES), "version=1.2.3\n").unwrap();
+
         // Act
         let updater = GradleUpdater::new();
         let version = updater.get_current_version(project_path).unwrap();
-        
+
         // Assert
         assert_eq!(version, "1.2.3");
     }
@@ -373,17 +391,14 @@ mod tests {
     fn test_get_version_from_groovy_single_quotes() {
         let temp_dir = TempDir::new().unwrap();
         let project_path = temp_dir.path();
-        
+
         // Arrange
-        fs::write(
-            project_path.join(GRADLE_BUILD),
-            "version = '1.2.3'\n"
-        ).unwrap();
-        
+        fs::write(project_path.join(GRADLE_BUILD), "version = '1.2.3'\n").unwrap();
+
         // Act
         let updater = GradleUpdater::new();
         let version = updater.get_current_version(project_path).unwrap();
-        
+
         // Assert
         assert_eq!(version, "1.2.3");
     }
@@ -393,17 +408,14 @@ mod tests {
     fn test_get_version_from_groovy_double_quotes() {
         let temp_dir = TempDir::new().unwrap();
         let project_path = temp_dir.path();
-        
+
         // Arrange
-        fs::write(
-            project_path.join(GRADLE_BUILD),
-            "version = \"1.2.3\"\n"
-        ).unwrap();
-        
+        fs::write(project_path.join(GRADLE_BUILD), "version = \"1.2.3\"\n").unwrap();
+
         // Act
         let updater = GradleUpdater::new();
         let version = updater.get_current_version(project_path).unwrap();
-        
+
         // Assert
         assert_eq!(version, "1.2.3");
     }
@@ -413,17 +425,14 @@ mod tests {
     fn test_get_version_from_kotlin_dsl() {
         let temp_dir = TempDir::new().unwrap();
         let project_path = temp_dir.path();
-        
+
         // Arrange
-        fs::write(
-            project_path.join(GRADLE_BUILD_KTS),
-            "version = \"1.2.3\"\n"
-        ).unwrap();
-        
+        fs::write(project_path.join(GRADLE_BUILD_KTS), "version = \"1.2.3\"\n").unwrap();
+
         // Act
         let updater = GradleUpdater::new();
         let version = updater.get_current_version(project_path).unwrap();
-        
+
         // Assert
         assert_eq!(version, "1.2.3");
     }
@@ -433,17 +442,14 @@ mod tests {
     fn test_update_version_in_properties() {
         let temp_dir = TempDir::new().unwrap();
         let project_path = temp_dir.path();
-        
+
         // Arrange
-        fs::write(
-            project_path.join(GRADLE_PROPERTIES),
-            "version=1.0.0\n"
-        ).unwrap();
-        
+        fs::write(project_path.join(GRADLE_PROPERTIES), "version=1.0.0\n").unwrap();
+
         // Act
         let updater = GradleUpdater::new();
         let updated = updater.update_version(project_path, "2.0.0").unwrap();
-        
+
         // Assert
         assert_eq!(updated.len(), 1);
         let content = fs::read_to_string(project_path.join(GRADLE_PROPERTIES)).unwrap();
@@ -455,17 +461,14 @@ mod tests {
     fn test_update_version_in_groovy_preserves_quotes() {
         let temp_dir = TempDir::new().unwrap();
         let project_path = temp_dir.path();
-        
+
         // Arrange
-        fs::write(
-            project_path.join(GRADLE_BUILD),
-            "version = '1.0.0'\n"
-        ).unwrap();
-        
+        fs::write(project_path.join(GRADLE_BUILD), "version = '1.0.0'\n").unwrap();
+
         // Act
         let updater = GradleUpdater::new();
         updater.update_version(project_path, "2.0.0").unwrap();
-        
+
         // Assert
         let content = fs::read_to_string(project_path.join(GRADLE_BUILD)).unwrap();
         assert!(content.contains("version = '2.0.0'"));
@@ -476,17 +479,14 @@ mod tests {
     fn test_update_version_in_kotlin_dsl() {
         let temp_dir = TempDir::new().unwrap();
         let project_path = temp_dir.path();
-        
+
         // Arrange
-        fs::write(
-            project_path.join(GRADLE_BUILD_KTS),
-            "version = \"1.0.0\"\n"
-        ).unwrap();
-        
+        fs::write(project_path.join(GRADLE_BUILD_KTS), "version = \"1.0.0\"\n").unwrap();
+
         // Act
         let updater = GradleUpdater::new();
         updater.update_version(project_path, "2.0.0").unwrap();
-        
+
         // Assert
         let content = fs::read_to_string(project_path.join(GRADLE_BUILD_KTS)).unwrap();
         assert!(content.contains("version = \"2.0.0\""));
@@ -497,10 +497,10 @@ mod tests {
     fn test_validate_project_success() {
         let temp_dir = TempDir::new().unwrap();
         let project_path = temp_dir.path();
-        
+
         // Arrange
         fs::write(project_path.join(GRADLE_BUILD), "version = '1.0.0'").unwrap();
-        
+
         // Act & Assert
         let updater = GradleUpdater::new();
         assert!(updater.validate_project(project_path).is_ok());
@@ -511,7 +511,7 @@ mod tests {
     fn test_validate_project_fails_without_files() {
         let temp_dir = TempDir::new().unwrap();
         let project_path = temp_dir.path();
-        
+
         // Act & Assert
         let updater = GradleUpdater::new();
         assert!(updater.validate_project(project_path).is_err());
@@ -529,15 +529,15 @@ mod tests {
     fn test_get_primary_file_prefers_properties() {
         let temp_dir = TempDir::new().unwrap();
         let project_path = temp_dir.path();
-        
+
         // Arrange: Create both files
         fs::write(project_path.join(GRADLE_PROPERTIES), "version=1.0.0").unwrap();
         fs::write(project_path.join(GRADLE_BUILD), "version = '1.0.0'").unwrap();
-        
+
         // Act
         let updater = GradleUpdater::new();
         let primary = updater.get_primary_file(project_path).unwrap();
-        
+
         // Assert
         assert!(primary.ends_with(GRADLE_PROPERTIES));
     }
@@ -547,17 +547,14 @@ mod tests {
     fn test_preview_changes() {
         let temp_dir = TempDir::new().unwrap();
         let project_path = temp_dir.path();
-        
+
         // Arrange
-        fs::write(
-            project_path.join(GRADLE_BUILD),
-            "version = '1.0.0'\n"
-        ).unwrap();
-        
+        fs::write(project_path.join(GRADLE_BUILD), "version = '1.0.0'\n").unwrap();
+
         // Act
         let updater = GradleUpdater::new();
         let changes = updater.preview_changes(project_path, "2.0.0").unwrap();
-        
+
         // Assert
         assert_eq!(changes.len(), 1);
         assert_eq!(changes[0].old_version, "1.0.0");
@@ -569,20 +566,21 @@ mod tests {
     fn test_handles_snapshot_versions() {
         let temp_dir = TempDir::new().unwrap();
         let project_path = temp_dir.path();
-        
+
         // Arrange
         fs::write(
             project_path.join(GRADLE_PROPERTIES),
-            "version=1.2.3-SNAPSHOT\n"
-        ).unwrap();
-        
+            "version=1.2.3-SNAPSHOT\n",
+        )
+        .unwrap();
+
         // Act
         let updater = GradleUpdater::new();
         let version = updater.get_current_version(project_path).unwrap();
-        
+
         // Assert
         assert_eq!(version, "1.2.3-SNAPSHOT");
-        
+
         // Update to release version
         updater.update_version(project_path, "1.2.3").unwrap();
         let content = fs::read_to_string(project_path.join(GRADLE_PROPERTIES)).unwrap();

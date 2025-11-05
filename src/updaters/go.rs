@@ -1,9 +1,9 @@
 use anyhow::{anyhow, Result};
 use std::path::{Path, PathBuf};
 
-use super::traits::{VersionUpdater, VersionChange};
+use super::traits::{VersionChange, VersionUpdater};
 use crate::constants::manifests::GO_MOD;
-use crate::utils::files::{read_file_safe, write_file_safe, backup_file};
+use crate::utils::files::{backup_file, read_file_safe, write_file_safe};
 
 /// Go Modules version updater
 ///
@@ -168,7 +168,7 @@ impl GoUpdater {
         if let Some(version_file) = self.find_version_file(project_path) {
             let content = read_file_safe(&version_file)?;
             let version = content.trim();
-            
+
             // Ensure v-prefix
             if version.starts_with('v') {
                 Ok(version.to_string())
@@ -185,13 +185,14 @@ impl VersionUpdater for GoUpdater {
     fn get_current_version(&self, project_path: &Path) -> Result<String> {
         // Strategy: Try VERSION file first, then fall back to git tags
         // In real implementation, should prefer git tags as authoritative source
-        self.read_version_file(project_path)
-            .or_else(|_| {
-                // TODO: Get version from git tags (most recent tag)
-                // For now, return error if no VERSION file
-                Err(anyhow!("No VERSION file found. Go modules use git tags for versioning. \
-                             Create a VERSION file or use git tags directly."))
-            })
+        self.read_version_file(project_path).or_else(|_| {
+            // TODO: Get version from git tags (most recent tag)
+            // For now, return error if no VERSION file
+            Err(anyhow!(
+                "No VERSION file found. Go modules use git tags for versioning. \
+                             Create a VERSION file or use git tags directly."
+            ))
+        })
     }
 
     fn update_version(&self, project_path: &Path, new_version: &str) -> Result<Vec<String>> {
@@ -213,7 +214,7 @@ impl VersionUpdater for GoUpdater {
 
         // Note: Git tag creation is handled by the caller
         // Go modules use git tags as the primary version source
-        
+
         Ok(updated_files)
     }
 
@@ -243,7 +244,11 @@ impl VersionUpdater for GoUpdater {
         project_path.join(GO_MOD).exists()
     }
 
-    fn preview_changes(&self, project_path: &Path, new_version: &str) -> Result<Vec<VersionChange>> {
+    fn preview_changes(
+        &self,
+        project_path: &Path,
+        new_version: &str,
+    ) -> Result<Vec<VersionChange>> {
         let mut changes = Vec::new();
 
         let version_with_prefix = if new_version.starts_with('v') {
@@ -283,7 +288,11 @@ mod tests {
         let project_path = temp_dir.path();
 
         // Arrange: Create go.mod
-        fs::write(project_path.join(GO_MOD), "module github.com/user/project\n\ngo 1.21\n").unwrap();
+        fs::write(
+            project_path.join(GO_MOD),
+            "module github.com/user/project\n\ngo 1.21\n",
+        )
+        .unwrap();
 
         // Act
         let updater = GoUpdater::new();
@@ -410,7 +419,7 @@ mod tests {
         // Assert
         assert_eq!(updated_files.len(), 1);
         assert!(updated_files[0].contains("VERSION"));
-        
+
         let new_content = fs::read_to_string(project_path.join("VERSION")).unwrap();
         assert_eq!(new_content.trim(), "v1.2.3");
     }
@@ -530,7 +539,11 @@ mod tests {
         // The backup_file function appends extension: "VERSION" -> "VERSION..autoversion.backup"
         // (double dot because VERSION has no extension, so extension() returns "")
         let backup_file = project_path.join("VERSION..autoversion.backup");
-        assert!(backup_file.exists(), "Backup file should exist at {:?}", backup_file);
+        assert!(
+            backup_file.exists(),
+            "Backup file should exist at {:?}",
+            backup_file
+        );
         let backup_content = fs::read_to_string(&backup_file).unwrap();
         assert_eq!(backup_content.trim(), "v1.0.0");
     }

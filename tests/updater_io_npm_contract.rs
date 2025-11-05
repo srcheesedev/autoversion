@@ -38,12 +38,24 @@ fn npm_updater_creates_backups_and_updates_files() -> anyhow::Result<()> {
     let updated_files = updater.update_version(project_path, "0.2.0")?;
 
     // Backups should exist
-    assert!(project_path.join("package.json.autoversion.backup").exists(), "package.json backup missing");
-    assert!(project_path.join("package-lock.json.autoversion.backup").exists(), "package-lock.json backup missing");
+    assert!(
+        project_path
+            .join("package.json.autoversion.backup")
+            .exists(),
+        "package.json backup missing"
+    );
+    assert!(
+        project_path
+            .join("package-lock.json.autoversion.backup")
+            .exists(),
+        "package-lock.json backup missing"
+    );
 
     // Updated files list should contain both
     assert!(updated_files.iter().any(|f| f.ends_with("package.json")));
-    assert!(updated_files.iter().any(|f| f.ends_with("package-lock.json")));
+    assert!(updated_files
+        .iter()
+        .any(|f| f.ends_with("package-lock.json")));
 
     // Contents should reflect new version
     let pkg = fs::read_to_string(project_path.join("package.json"))?;

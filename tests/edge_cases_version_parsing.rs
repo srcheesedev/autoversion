@@ -8,8 +8,8 @@
 //! - Path traversal attempts
 
 use anyhow::Result;
-use autoversion::updaters::npm::NpmUpdater;
 use autoversion::updaters::maven::MavenUpdater;
+use autoversion::updaters::npm::NpmUpdater;
 use autoversion::updaters::traits::VersionUpdater;
 use std::fs;
 use tempfile::TempDir;
@@ -19,16 +19,17 @@ use tempfile::TempDir;
 fn test_malformed_json() {
     let temp = TempDir::new().unwrap();
     let project_path = temp.path();
-    
+
     // Create malformed JSON
     fs::write(
         project_path.join("package.json"),
         r#"{"version": "1.0.0", invalid json}"#,
-    ).unwrap();
-    
+    )
+    .unwrap();
+
     let updater = NpmUpdater::new();
     let result = updater.get_current_version(project_path);
-    
+
     // Should fail gracefully with error
     assert!(result.is_err(), "Should reject malformed JSON");
 }
@@ -38,16 +39,17 @@ fn test_malformed_json() {
 fn test_missing_version_field() {
     let temp = TempDir::new().unwrap();
     let project_path = temp.path();
-    
+
     // Valid JSON but no version
     fs::write(
         project_path.join("package.json"),
         r#"{"name": "test-package"}"#,
-    ).unwrap();
-    
+    )
+    .unwrap();
+
     let updater = NpmUpdater::new();
     let result = updater.get_current_version(project_path);
-    
+
     // Should fail gracefully
     assert!(result.is_err(), "Should require version field");
 }
@@ -57,19 +59,23 @@ fn test_missing_version_field() {
 fn test_invalid_version_format() {
     let temp = TempDir::new().unwrap();
     let project_path = temp.path();
-    
+
     // Invalid semver format
     fs::write(
         project_path.join("package.json"),
         r#"{"version": "not-a-version"}"#,
-    ).unwrap();
-    
+    )
+    .unwrap();
+
     let updater = NpmUpdater::new();
     let result = updater.get_current_version(project_path);
-    
+
     // NPM allows non-semver versions, so it may succeed
     // The important thing is it doesn't crash
-    assert!(result.is_ok() || result.is_err(), "Should handle gracefully");
+    assert!(
+        result.is_ok() || result.is_err(),
+        "Should handle gracefully"
+    );
 }
 
 /// Test handling of version with build metadata
@@ -77,19 +83,19 @@ fn test_invalid_version_format() {
 fn test_version_with_build_metadata() -> Result<()> {
     let temp = TempDir::new()?;
     let project_path = temp.path();
-    
+
     // Version with build metadata
     fs::write(
         project_path.join("package.json"),
         r#"{"version": "1.2.3+build.123"}"#,
     )?;
-    
+
     let updater = NpmUpdater::new();
     let version = updater.get_current_version(project_path)?;
-    
+
     // Should handle build metadata
     assert!(version.contains("1.2.3"));
-    
+
     Ok(())
 }
 
@@ -98,18 +104,18 @@ fn test_version_with_build_metadata() -> Result<()> {
 fn test_prerelease_versions() -> Result<()> {
     let temp = TempDir::new()?;
     let project_path = temp.path();
-    
+
     // Pre-release version
     fs::write(
         project_path.join("package.json"),
         r#"{"version": "2.0.0-beta.1"}"#,
     )?;
-    
+
     let updater = NpmUpdater::new();
     let version = updater.get_current_version(project_path)?;
-    
+
     assert_eq!(version, "2.0.0-beta.1");
-    
+
     Ok(())
 }
 
@@ -118,25 +124,25 @@ fn test_prerelease_versions() -> Result<()> {
 fn test_unicode_in_json() -> Result<()> {
     let temp = TempDir::new()?;
     let project_path = temp.path();
-    
+
     // JSON with Unicode characters
     fs::write(
         project_path.join("package.json"),
         r#"{"name": "测试", "version": "1.0.0", "description": "テスト 🚀"}"#,
     )?;
-    
+
     let updater = NpmUpdater::new();
     let version = updater.get_current_version(project_path)?;
-    
+
     assert_eq!(version, "1.0.0");
-    
+
     // Update should work (Unicode handling depends on JSON library)
     let update_result = updater.update_version(project_path, "1.0.1");
     assert!(update_result.is_ok(), "Should handle Unicode in JSON");
-    
+
     let content = fs::read_to_string(project_path.join("package.json"))?;
     assert!(content.contains("1.0.1"), "Should update version");
-    
+
     Ok(())
 }
 
@@ -145,7 +151,7 @@ fn test_unicode_in_json() -> Result<()> {
 fn test_deeply_nested_json() -> Result<()> {
     let temp = TempDir::new()?;
     let project_path = temp.path();
-    
+
     // Deeply nested structure
     fs::write(
         project_path.join("package.json"),
@@ -160,13 +166,13 @@ fn test_deeply_nested_json() -> Result<()> {
   }
 }"#,
     )?;
-    
+
     let updater = NpmUpdater::new();
     let version = updater.get_current_version(project_path)?;
-    
+
     // Should get top-level version
     assert_eq!(version, "1.0.0");
-    
+
     Ok(())
 }
 
@@ -175,7 +181,7 @@ fn test_deeply_nested_json() -> Result<()> {
 fn test_maven_with_namespaces() -> Result<()> {
     let temp = TempDir::new()?;
     let project_path = temp.path();
-    
+
     // POM with namespace
     fs::write(
         project_path.join("pom.xml"),
@@ -190,12 +196,12 @@ fn test_maven_with_namespaces() -> Result<()> {
     <version>1.0.0</version>
 </project>"#,
     )?;
-    
+
     let updater = MavenUpdater::new();
     let version = updater.get_current_version(project_path)?;
-    
+
     assert_eq!(version, "1.0.0");
-    
+
     Ok(())
 }
 
@@ -204,7 +210,7 @@ fn test_maven_with_namespaces() -> Result<()> {
 fn test_maven_with_parent() -> Result<()> {
     let temp = TempDir::new()?;
     let project_path = temp.path();
-    
+
     // POM with parent and project version
     fs::write(
         project_path.join("pom.xml"),
@@ -219,14 +225,17 @@ fn test_maven_with_parent() -> Result<()> {
     <version>1.5.0</version>
 </project>"#,
     )?;
-    
+
     let updater = MavenUpdater::new();
     let version = updater.get_current_version(project_path)?;
-    
+
     // Maven may find either project or parent version depending on parsing
     // The important thing is it finds a valid version
-    assert!(version == "1.5.0" || version == "2.0.0", "Should find a version");
-    
+    assert!(
+        version == "1.5.0" || version == "2.0.0",
+        "Should find a version"
+    );
+
     Ok(())
 }
 
@@ -235,7 +244,7 @@ fn test_maven_with_parent() -> Result<()> {
 fn test_maven_with_comments() -> Result<()> {
     let temp = TempDir::new()?;
     let project_path = temp.path();
-    
+
     // POM with comments
     fs::write(
         project_path.join("pom.xml"),
@@ -246,12 +255,12 @@ fn test_maven_with_comments() -> Result<()> {
     <!-- <version>should-not-match</version> -->
 </project>"#,
     )?;
-    
+
     let updater = MavenUpdater::new();
     let version = updater.get_current_version(project_path)?;
-    
+
     assert_eq!(version, "3.2.1");
-    
+
     Ok(())
 }
 
@@ -260,7 +269,7 @@ fn test_maven_with_comments() -> Result<()> {
 fn test_maven_with_cdata() -> Result<()> {
     let temp = TempDir::new()?;
     let project_path = temp.path();
-    
+
     // POM with CDATA
     fs::write(
         project_path.join("pom.xml"),
@@ -270,12 +279,12 @@ fn test_maven_with_cdata() -> Result<()> {
     <description><![CDATA[Version: should-not-match]]></description>
 </project>"#,
     )?;
-    
+
     let updater = MavenUpdater::new();
     let version = updater.get_current_version(project_path)?;
-    
+
     assert_eq!(version, "1.2.3");
-    
+
     Ok(())
 }
 
@@ -284,19 +293,23 @@ fn test_maven_with_cdata() -> Result<()> {
 fn test_extremely_long_version() {
     let temp = TempDir::new().unwrap();
     let project_path = temp.path();
-    
+
     // Unreasonably long version string
     let long_version = format!("1.0.0-{}", "a".repeat(1000));
     fs::write(
         project_path.join("package.json"),
         format!(r#"{{"version": "{}"}}"#, long_version),
-    ).unwrap();
-    
+    )
+    .unwrap();
+
     let updater = NpmUpdater::new();
     let result = updater.get_current_version(project_path);
-    
+
     // Should either accept it or reject gracefully
-    assert!(result.is_ok() || result.is_err(), "Should handle long versions");
+    assert!(
+        result.is_ok() || result.is_err(),
+        "Should handle long versions"
+    );
 }
 
 /// Test handling of whitespace variations
@@ -304,7 +317,7 @@ fn test_extremely_long_version() {
 fn test_whitespace_variations() -> Result<()> {
     let temp = TempDir::new()?;
     let project_path = temp.path();
-    
+
     // Extra whitespace
     fs::write(
         project_path.join("package.json"),
@@ -313,11 +326,11 @@ fn test_whitespace_variations() -> Result<()> {
     "name": "test"
 }"#,
     )?;
-    
+
     let updater = NpmUpdater::new();
     let version = updater.get_current_version(project_path)?;
-    
+
     assert_eq!(version, "1.0.0");
-    
+
     Ok(())
 }

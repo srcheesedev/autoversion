@@ -1,7 +1,7 @@
 use assert_cmd::prelude::*;
-use std::process::Command;
-use std::fs;
 use std::env;
+use std::fs;
+use std::process::Command;
 use tempfile::TempDir;
 
 /// Helper function to get the autoversion binary path
@@ -36,13 +36,13 @@ fn init_git_repo(path: &std::path::Path) {
         .current_dir(path)
         .output()
         .unwrap();
-    
+
     Command::new("git")
         .args(["config", "user.email", "test@example.com"])
         .current_dir(path)
         .output()
         .unwrap();
-    
+
     Command::new("git")
         .args(["config", "user.name", "Test User"])
         .current_dir(path)
@@ -72,16 +72,18 @@ fn read_npm_version(path: &std::path::Path) -> String {
 fn test_rollback_basic() {
     let temp_dir = TempDir::new().unwrap();
     let project_path = create_npm_project(&temp_dir);
-    
+
     // Bump version
     bump_version(&project_path, "patch");
-    
+
     // Verify version was bumped
     assert_eq!(read_npm_version(&project_path), "1.0.1");
-    
+
     // Verify backup exists
-    assert!(project_path.join("package.json.autoversion.backup").exists());
-    
+    assert!(project_path
+        .join("package.json.autoversion.backup")
+        .exists());
+
     // Rollback
     let mut cmd = Command::new(get_autoversion_bin());
     cmd.arg("--rollback")
@@ -89,12 +91,14 @@ fn test_rollback_basic() {
         .arg(&project_path)
         .assert()
         .success();
-    
+
     // Verify version was restored
     assert_eq!(read_npm_version(&project_path), "1.0.0");
-    
+
     // Verify backup was deleted
-    assert!(!project_path.join("package.json.autoversion.backup").exists());
+    assert!(!project_path
+        .join("package.json.autoversion.backup")
+        .exists());
 }
 
 #[test]
@@ -102,20 +106,20 @@ fn test_rollback_files_only() {
     let temp_dir = TempDir::new().unwrap();
     let project_path = create_npm_project(&temp_dir);
     init_git_repo(&project_path);
-    
+
     // Commit initial state
     Command::new("git")
         .args(["add", "."])
         .current_dir(&project_path)
         .output()
         .unwrap();
-    
+
     Command::new("git")
         .args(["commit", "-m", "Initial commit"])
         .current_dir(&project_path)
         .output()
         .unwrap();
-    
+
     // Bump version with tag
     let mut cmd = Command::new(get_autoversion_bin());
     cmd.arg("-p")
@@ -124,7 +128,7 @@ fn test_rollback_files_only() {
         .arg("patch")
         .arg("--create-tag");
     cmd.output().unwrap();
-    
+
     // Verify tag was created
     let output = Command::new("git")
         .args(["tag", "-l"])
@@ -132,7 +136,7 @@ fn test_rollback_files_only() {
         .output()
         .unwrap();
     assert!(String::from_utf8_lossy(&output.stdout).contains("v1.0.1"));
-    
+
     // Rollback files only
     let mut cmd = Command::new(get_autoversion_bin());
     cmd.arg("--rollback")
@@ -141,10 +145,10 @@ fn test_rollback_files_only() {
         .arg(&project_path)
         .assert()
         .success();
-    
+
     // Verify version was restored
     assert_eq!(read_npm_version(&project_path), "1.0.0");
-    
+
     // Verify tag still exists (files-only doesn't delete tags)
     let output = Command::new("git")
         .args(["tag", "-l"])
@@ -159,20 +163,20 @@ fn test_rollback_git_only() {
     let temp_dir = TempDir::new().unwrap();
     let project_path = create_npm_project(&temp_dir);
     init_git_repo(&project_path);
-    
+
     // Commit initial state
     Command::new("git")
         .args(["add", "."])
         .current_dir(&project_path)
         .output()
         .unwrap();
-    
+
     Command::new("git")
         .args(["commit", "-m", "Initial commit"])
         .current_dir(&project_path)
         .output()
         .unwrap();
-    
+
     // Bump version with tag
     let mut cmd = Command::new(get_autoversion_bin());
     cmd.arg("-p")
@@ -181,7 +185,7 @@ fn test_rollback_git_only() {
         .arg("patch")
         .arg("--create-tag");
     cmd.output().unwrap();
-    
+
     // Verify tag was created and version changed
     let output = Command::new("git")
         .args(["tag", "-l"])
@@ -190,7 +194,7 @@ fn test_rollback_git_only() {
         .unwrap();
     assert!(String::from_utf8_lossy(&output.stdout).contains("v1.0.1"));
     assert_eq!(read_npm_version(&project_path), "1.0.1");
-    
+
     // Rollback git only (specify version to delete tag)
     let mut cmd = Command::new(get_autoversion_bin());
     cmd.arg("--rollback")
@@ -201,7 +205,7 @@ fn test_rollback_git_only() {
         .arg(&project_path)
         .assert()
         .success();
-    
+
     // Verify tag was deleted
     let output = Command::new("git")
         .args(["tag", "-l"])
@@ -209,7 +213,7 @@ fn test_rollback_git_only() {
         .output()
         .unwrap();
     assert!(!String::from_utf8_lossy(&output.stdout).contains("v1.0.1"));
-    
+
     // Verify version was NOT restored (git-only doesn't touch files)
     assert_eq!(read_npm_version(&project_path), "1.0.1");
 }
@@ -219,28 +223,30 @@ fn test_rollback_with_commit_revert() {
     let temp_dir = TempDir::new().unwrap();
     let project_path = create_npm_project(&temp_dir);
     init_git_repo(&project_path);
-    
+
     // Commit initial state
     Command::new("git")
         .args(["add", "."])
         .current_dir(&project_path)
         .output()
         .unwrap();
-    
+
     Command::new("git")
         .args(["commit", "-m", "Initial commit"])
         .current_dir(&project_path)
         .output()
         .unwrap();
-    
+
     // Get initial commit hash
     let initial_commit = Command::new("git")
         .args(["rev-parse", "HEAD"])
         .current_dir(&project_path)
         .output()
         .unwrap();
-    let initial_hash = String::from_utf8_lossy(&initial_commit.stdout).trim().to_string();
-    
+    let initial_hash = String::from_utf8_lossy(&initial_commit.stdout)
+        .trim()
+        .to_string();
+
     // Bump version with commit
     let mut cmd = Command::new(get_autoversion_bin());
     cmd.arg("-p")
@@ -249,16 +255,18 @@ fn test_rollback_with_commit_revert() {
         .arg("patch")
         .arg("--commit");
     cmd.output().unwrap();
-    
+
     // Verify new commit was created
     let new_commit = Command::new("git")
         .args(["rev-parse", "HEAD"])
         .current_dir(&project_path)
         .output()
         .unwrap();
-    let new_hash = String::from_utf8_lossy(&new_commit.stdout).trim().to_string();
+    let new_hash = String::from_utf8_lossy(&new_commit.stdout)
+        .trim()
+        .to_string();
     assert_ne!(initial_hash, new_hash);
-    
+
     // Rollback with commit revert
     let mut cmd = Command::new(get_autoversion_bin());
     cmd.arg("--rollback")
@@ -267,16 +275,18 @@ fn test_rollback_with_commit_revert() {
         .arg(&project_path)
         .assert()
         .success();
-    
+
     // Verify commit was reverted
     let reverted_commit = Command::new("git")
         .args(["rev-parse", "HEAD"])
         .current_dir(&project_path)
         .output()
         .unwrap();
-    let reverted_hash = String::from_utf8_lossy(&reverted_commit.stdout).trim().to_string();
+    let reverted_hash = String::from_utf8_lossy(&reverted_commit.stdout)
+        .trim()
+        .to_string();
     assert_eq!(initial_hash, reverted_hash);
-    
+
     // Verify version was restored
     assert_eq!(read_npm_version(&project_path), "1.0.0");
 }
@@ -285,7 +295,7 @@ fn test_rollback_with_commit_revert() {
 fn test_rollback_no_backups() {
     let temp_dir = TempDir::new().unwrap();
     let project_path = create_npm_project(&temp_dir);
-    
+
     // Try to rollback without any backups
     let mut cmd = Command::new(get_autoversion_bin());
     cmd.arg("--rollback")
@@ -293,7 +303,7 @@ fn test_rollback_no_backups() {
         .arg(&project_path)
         .assert()
         .failure();
-    
+
     // Should fail because no backups exist
 }
 
@@ -302,10 +312,10 @@ fn test_rollback_no_backups() {
 // fn test_rollback_multiple_files() {
 //     let temp_dir = TempDir::new().unwrap();
 //     let project_path = temp_dir.path();
-//     
+//
 //     // Create a VERSION file
 //     fs::write(project_path.join("VERSION"), "1.0.0").unwrap();
-//     
+//
 //     // Bump version (will create backup)
 //     let mut cmd = Command::new(get_autoversion_bin());
 //     cmd.arg("-p")
@@ -315,12 +325,12 @@ fn test_rollback_no_backups() {
 //         .arg("-t")
 //         .arg("generic");
 //     cmd.output().unwrap();
-//     
+//
 //     // Verify version was bumped and backup exists
 //     let version_content = fs::read_to_string(project_path.join("VERSION")).unwrap();
 //     assert_eq!(version_content.trim(), "1.0.1");
 //     assert!(project_path.join("VERSION.autoversion.backup").exists());
-//     
+//
 //     // Rollback
 //     let mut cmd = Command::new(get_autoversion_bin());
 //     cmd.arg("--rollback")
@@ -328,11 +338,11 @@ fn test_rollback_no_backups() {
 //         .arg(project_path)
 //         .assert()
 //         .success();
-//     
+//
 //     // Verify VERSION was restored
 //     let version_content = fs::read_to_string(project_path.join("VERSION")).unwrap();
 //     assert_eq!(version_content, "1.0.0");
-//     
+//
 //     // Verify backup was removed
 //     assert!(!project_path.join("VERSION.autoversion.backup").exists());
 // }
@@ -341,7 +351,7 @@ fn test_rollback_no_backups() {
 fn test_rollback_validation_conflicting_options() {
     let temp_dir = TempDir::new().unwrap();
     let project_path = create_npm_project(&temp_dir);
-    
+
     // Try to use both --rollback-files-only and --rollback-git-only
     let mut cmd = Command::new(get_autoversion_bin());
     cmd.arg("--rollback")
@@ -351,7 +361,7 @@ fn test_rollback_validation_conflicting_options() {
         .arg(&project_path)
         .assert()
         .failure();
-    
+
     // Should fail with validation error
 }
 
@@ -359,7 +369,7 @@ fn test_rollback_validation_conflicting_options() {
 fn test_rollback_validation_with_version_bump() {
     let temp_dir = TempDir::new().unwrap();
     let project_path = create_npm_project(&temp_dir);
-    
+
     // Try to use --rollback with --create-tag
     let mut cmd = Command::new(get_autoversion_bin());
     cmd.arg("--rollback")
@@ -368,7 +378,7 @@ fn test_rollback_validation_with_version_bump() {
         .arg(&project_path)
         .assert()
         .failure();
-    
+
     // Should fail with validation error
 }
 
@@ -377,20 +387,20 @@ fn test_rollback_with_specific_version() {
     let temp_dir = TempDir::new().unwrap();
     let project_path = create_npm_project(&temp_dir);
     init_git_repo(&project_path);
-    
+
     // Commit initial state
     Command::new("git")
         .args(["add", "."])
         .current_dir(&project_path)
         .output()
         .unwrap();
-    
+
     Command::new("git")
         .args(["commit", "-m", "Initial commit"])
         .current_dir(&project_path)
         .output()
         .unwrap();
-    
+
     // Bump to 1.0.1
     let mut cmd = Command::new(get_autoversion_bin());
     cmd.arg("-p")
@@ -399,7 +409,7 @@ fn test_rollback_with_specific_version() {
         .arg("patch")
         .arg("--create-tag");
     cmd.output().unwrap();
-    
+
     // Manually bump to 1.0.2 (simulate multiple version changes)
     let mut cmd = Command::new(get_autoversion_bin());
     cmd.arg("-p")
@@ -408,7 +418,7 @@ fn test_rollback_with_specific_version() {
         .arg("patch")
         .arg("--create-tag");
     cmd.output().unwrap();
-    
+
     // Verify both tags exist
     let output = Command::new("git")
         .args(["tag", "-l"])
@@ -418,7 +428,7 @@ fn test_rollback_with_specific_version() {
     let tags = String::from_utf8_lossy(&output.stdout);
     assert!(tags.contains("v1.0.1"));
     assert!(tags.contains("v1.0.2"));
-    
+
     // Rollback specific version (1.0.1)
     let mut cmd = Command::new(get_autoversion_bin());
     cmd.arg("--rollback")
@@ -428,7 +438,7 @@ fn test_rollback_with_specific_version() {
         .arg(&project_path)
         .assert()
         .success();
-    
+
     // Verify v1.0.1 was deleted but v1.0.2 still exists
     let output = Command::new("git")
         .args(["tag", "-l"])

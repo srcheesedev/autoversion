@@ -10,29 +10,29 @@ fn init_test_repo(path: &Path) -> Result<()> {
         .args(["init"])
         .current_dir(path)
         .output()?;
-    
+
     std::process::Command::new("git")
         .args(["config", "user.name", "Test User"])
         .current_dir(path)
         .output()?;
-    
+
     std::process::Command::new("git")
         .args(["config", "user.email", "test@example.com"])
         .current_dir(path)
         .output()?;
-    
+
     // Create initial commit
     fs::write(path.join("README.md"), "# Test Project")?;
     std::process::Command::new("git")
         .args(["add", "."])
         .current_dir(path)
         .output()?;
-    
+
     std::process::Command::new("git")
         .args(["commit", "-m", "Initial commit"])
         .current_dir(path)
         .output()?;
-    
+
     Ok(())
 }
 
@@ -145,13 +145,8 @@ fn test_integration_tag_and_commit_workflow() {
     fs::write(&version_file, "1.5.0").unwrap();
 
     // Commit changes
-    operations::commit_version_changes_in(
-        temp.path(),
-        &[String::from("VERSION")],
-        "1.5.0",
-        None,
-    )
-    .unwrap();
+    operations::commit_version_changes_in(temp.path(), &[String::from("VERSION")], "1.5.0", None)
+        .unwrap();
 
     // Create tag
     operations::create_tag_in(temp.path(), "v1.5.0", "1.5.0").unwrap();
@@ -191,7 +186,11 @@ fn test_integration_commit_multiple_files() {
 
     // Create multiple files
     fs::write(temp.path().join("package.json"), r#"{"version": "1.2.3"}"#).unwrap();
-    fs::write(temp.path().join("package-lock.json"), r#"{"version": "1.2.3"}"#).unwrap();
+    fs::write(
+        temp.path().join("package-lock.json"),
+        r#"{"version": "1.2.3"}"#,
+    )
+    .unwrap();
 
     // Commit both files
     operations::commit_version_changes_in(
@@ -226,7 +225,7 @@ fn test_integration_tag_creation_after_multiple_commits() {
     for i in 1..=3 {
         let file = temp.path().join(format!("file{}.txt", i));
         fs::write(&file, format!("content {}", i)).unwrap();
-        
+
         operations::commit_version_changes_in(
             temp.path(),
             &[format!("file{}.txt", i)],
@@ -241,7 +240,7 @@ fn test_integration_tag_creation_after_multiple_commits() {
 
     // Verify tag was created and points to a commit (annotated tags have their own SHA)
     let tag_output = std::process::Command::new("git")
-        .args(["rev-parse", "v1.0.3^{commit}"])  // Dereference to the commit
+        .args(["rev-parse", "v1.0.3^{commit}"]) // Dereference to the commit
         .current_dir(temp.path())
         .output()
         .unwrap();

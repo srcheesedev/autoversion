@@ -22,7 +22,7 @@
 //!
 //! # fn example() -> anyhow::Result<()> {
 //! let user_path = Path::new("../../../etc/passwd");
-//! 
+//!
 //! // This will fail with appropriate error
 //! let safe_path = validate_project_path(user_path)?;
 //! # Ok(())
@@ -73,10 +73,7 @@ use std::path::{Path, PathBuf};
 pub fn validate_project_path(path: &Path) -> Result<PathBuf> {
     // Check if path exists
     if !path.exists() {
-        return Err(anyhow!(
-            "Project path does not exist: {}",
-            path.display()
-        ));
+        return Err(anyhow!("Project path does not exist: {}", path.display()));
     }
 
     // Check if path is a directory
@@ -88,13 +85,9 @@ pub fn validate_project_path(path: &Path) -> Result<PathBuf> {
     }
 
     // Canonicalize to resolve symlinks and ".." sequences
-    let canonical_path = path.canonicalize().map_err(|e| {
-        anyhow!(
-            "Failed to canonicalize path {}: {}",
-            path.display(),
-            e
-        )
-    })?;
+    let canonical_path = path
+        .canonicalize()
+        .map_err(|e| anyhow!("Failed to canonicalize path {}: {}", path.display(), e))?;
 
     // Ensure path is absolute (canonicalize should guarantee this, but double-check)
     if !canonical_path.is_absolute() {
@@ -131,7 +124,11 @@ pub fn validate_project_path(path: &Path) -> Result<PathBuf> {
 pub fn validate_file_path(file_path: &Path, project_path: &Path) -> Result<PathBuf> {
     // Always canonicalize project path to handle symlinks (e.g., macOS /var vs /private/var)
     let canonical_project = project_path.canonicalize().map_err(|e| {
-        anyhow!("Failed to canonicalize project path {}: {}", project_path.display(), e)
+        anyhow!(
+            "Failed to canonicalize project path {}: {}",
+            project_path.display(),
+            e
+        )
     })?;
 
     let abs_file = if file_path.is_absolute() {
@@ -203,7 +200,7 @@ pub fn sanitize_filename(filename: &str) -> String {
             c.is_alphanumeric() || *c == '-' || *c == '_' || *c == '.'
         })
         .collect();
-    
+
     // Remove leading dots to prevent hidden files and path traversal
     sanitized.trim_start_matches('.').to_string()
 }
@@ -237,7 +234,10 @@ pub fn contains_suspicious_patterns(path: &Path) -> bool {
     }
 
     // Check for control characters
-    if path_str.chars().any(|c| c.is_control() && c != '\n' && c != '\r') {
+    if path_str
+        .chars()
+        .any(|c| c.is_control() && c != '\n' && c != '\r')
+    {
         return true;
     }
 
@@ -288,7 +288,7 @@ pub fn contains_suspicious_patterns(path: &Path) -> bool {
 /// ```
 pub fn lock_file_for_write(file_path: &Path) -> Result<std::fs::File> {
     use std::fs::OpenOptions;
-    
+
     let file = OpenOptions::new()
         .write(true)
         .create(true)
@@ -306,7 +306,7 @@ pub fn lock_file_for_write(file_path: &Path) -> Result<std::fs::File> {
     // For production, consider adding the `fs2` crate for proper file locking:
     // use fs2::FileExt;
     // file.lock_exclusive()?;
-    
+
     Ok(file)
 }
 
@@ -345,23 +345,25 @@ pub fn lock_file_for_write(file_path: &Path) -> Result<std::fs::File> {
 /// ```
 pub fn sanitize_error_message(error_message: &str) -> String {
     use regex::Regex;
-    
+
     let mut sanitized = error_message.to_string();
-    
+
     // Replace home directories (Unix)
     let home_re = Regex::new(r"/home/[^/\s]+").unwrap();
     sanitized = home_re.replace_all(&sanitized, "/home/***").to_string();
-    
+
     let users_re = Regex::new(r"/Users/[^/\s]+").unwrap();
     sanitized = users_re.replace_all(&sanitized, "/Users/***").to_string();
-    
+
     // Replace home directories (Windows)
     let win_users_re = Regex::new(r"C:\\Users\\[^\\s]+").unwrap();
-    sanitized = win_users_re.replace_all(&sanitized, "C:\\Users\\***").to_string();
-    
+    sanitized = win_users_re
+        .replace_all(&sanitized, "C:\\Users\\***")
+        .to_string();
+
     // Replace root references
-    sanitized = sanitized.replace("/root/", "/***/"  );
-    
+    sanitized = sanitized.replace("/root/", "/***/");
+
     sanitized
 }
 
@@ -398,7 +400,10 @@ mod tests {
 
         let result = validate_project_path(&file_path);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("must be a directory"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("must be a directory"));
 
         Ok(())
     }
@@ -411,7 +416,7 @@ mod tests {
         fs::write(&file, "test")?;
 
         let validated = validate_file_path(&file, project)?;
-        
+
         // Canonicalize both paths for comparison (handles macOS /var vs /private/var)
         let canonical_project = project.canonicalize()?;
         assert!(validated.starts_with(&canonical_project));
@@ -423,7 +428,7 @@ mod tests {
     fn test_validate_file_path_outside_project() -> Result<()> {
         let temp1 = TempDir::new()?;
         let temp2 = TempDir::new()?;
-        
+
         let project = temp1.path();
         let outside_file = temp2.path().join("evil.txt");
         fs::write(&outside_file, "evil")?;
@@ -438,18 +443,21 @@ mod tests {
     #[test]
     fn test_sanitize_filename() {
         assert_eq!(sanitize_filename("normal.txt"), "normal.txt");
-        assert_eq!(sanitize_filename("file-name_123.tar.gz"), "file-name_123.tar.gz");
+        assert_eq!(
+            sanitize_filename("file-name_123.tar.gz"),
+            "file-name_123.tar.gz"
+        );
         assert_eq!(sanitize_filename("../../../etc/passwd"), "etcpasswd");
-        assert_eq!(sanitize_filename("file; rm -rf /"), "filerm-rf");  // hyphen is allowed
+        assert_eq!(sanitize_filename("file; rm -rf /"), "filerm-rf"); // hyphen is allowed
         assert_eq!(sanitize_filename("file\0name"), "filename");
-        assert_eq!(sanitize_filename("...hidden"), "hidden");  // removes leading dots
+        assert_eq!(sanitize_filename("...hidden"), "hidden"); // removes leading dots
     }
 
     #[test]
     fn test_contains_suspicious_patterns() {
         assert!(!contains_suspicious_patterns(Path::new("normal/path")));
         assert!(!contains_suspicious_patterns(Path::new("file.txt")));
-        
+
         assert!(contains_suspicious_patterns(Path::new("../etc/passwd")));
         assert!(contains_suspicious_patterns(Path::new("path/../other")));
         assert!(contains_suspicious_patterns(Path::new("file\0name")));
@@ -458,20 +466,20 @@ mod tests {
     #[test]
     fn test_lock_file_for_write() -> Result<()> {
         use std::io::Write;
-        
+
         let temp = TempDir::new()?;
         let file_path = temp.path().join("test.txt");
-        
+
         // Lock and write to file
         {
             let mut file = lock_file_for_write(&file_path)?;
             writeln!(file, "test content")?;
         } // Lock released here
-        
+
         // Verify content was written
         let content = fs::read_to_string(&file_path)?;
         assert!(content.contains("test content"));
-        
+
         Ok(())
     }
 
@@ -482,30 +490,30 @@ mod tests {
             sanitize_error_message("Failed to read /home/user/project/config.json"),
             "Failed to read /home/***/project/config.json"
         );
-        
+
         assert_eq!(
             sanitize_error_message("Error in /Users/john/secret/file.txt"),
             "Error in /Users/***/secret/file.txt"
         );
-        
+
         // Windows paths - masks username
         assert_eq!(
             sanitize_error_message("Failed to read C:\\Users\\admin\\config.ini"),
             "Failed to read C:\\Users\\***\\config.ini"
         );
-        
+
         // Root paths - masks root directory
         assert_eq!(
             sanitize_error_message("Cannot access /root/.ssh/id_rsa"),
             "Cannot access /***/.ssh/id_rsa"
         );
-        
+
         // Simple filenames should not be changed
         assert_eq!(
             sanitize_error_message("File not found: config.json"),
             "File not found: config.json"
         );
-        
+
         // Multiple paths in same message
         assert_eq!(
             sanitize_error_message("Copy from /home/alice/src to /home/bob/dest"),

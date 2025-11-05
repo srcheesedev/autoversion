@@ -22,16 +22,23 @@ fn gradle_updater_creates_backup_and_updates_gradle_properties() -> anyhow::Resu
 
     // Backup should exist
     assert!(
-        project_path.join("gradle.properties.autoversion.backup").exists(),
+        project_path
+            .join("gradle.properties.autoversion.backup")
+            .exists(),
         "gradle.properties backup missing"
     );
 
     // Updated files list should contain gradle.properties
-    assert!(updated_files.iter().any(|f| f.ends_with("gradle.properties")));
+    assert!(updated_files
+        .iter()
+        .any(|f| f.ends_with("gradle.properties")));
 
     // Contents should reflect new version
     let content = fs::read_to_string(project_path.join("gradle.properties"))?;
-    assert!(content.contains("version=1.1.0"), "Version not updated in gradle.properties");
+    assert!(
+        content.contains("version=1.1.0"),
+        "Version not updated in gradle.properties"
+    );
 
     Ok(())
 }
@@ -55,7 +62,9 @@ fn gradle_updater_creates_backup_and_updates_build_gradle() -> anyhow::Result<()
 
     // Backup should exist
     assert!(
-        project_path.join("build.gradle.autoversion.backup").exists(),
+        project_path
+            .join("build.gradle.autoversion.backup")
+            .exists(),
         "build.gradle backup missing"
     );
 
@@ -64,7 +73,10 @@ fn gradle_updater_creates_backup_and_updates_build_gradle() -> anyhow::Result<()
 
     // Contents should reflect new version
     let content = fs::read_to_string(project_path.join("build.gradle"))?;
-    assert!(content.contains("version = '2.1.0'"), "Version not updated in build.gradle");
+    assert!(
+        content.contains("version = '2.1.0'"),
+        "Version not updated in build.gradle"
+    );
 
     Ok(())
 }
@@ -88,16 +100,23 @@ fn gradle_updater_creates_backup_and_updates_build_gradle_kts() -> anyhow::Resul
 
     // Backup should exist
     assert!(
-        project_path.join("build.gradle.kts.autoversion.backup").exists(),
+        project_path
+            .join("build.gradle.kts.autoversion.backup")
+            .exists(),
         "build.gradle.kts backup missing"
     );
 
     // Updated files list should contain build.gradle.kts
-    assert!(updated_files.iter().any(|f| f.ends_with("build.gradle.kts")));
+    assert!(updated_files
+        .iter()
+        .any(|f| f.ends_with("build.gradle.kts")));
 
     // Contents should reflect new version
     let content = fs::read_to_string(project_path.join("build.gradle.kts"))?;
-    assert!(content.contains("version = \"3.1.0\""), "Version not updated in build.gradle.kts");
+    assert!(
+        content.contains("version = \"3.1.0\""),
+        "Version not updated in build.gradle.kts"
+    );
 
     Ok(())
 }

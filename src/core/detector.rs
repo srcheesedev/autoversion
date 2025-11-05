@@ -1,11 +1,10 @@
 use anyhow::{anyhow, Result};
-use std::path::{Path, PathBuf};
 use std::fs;
+use std::path::{Path, PathBuf};
 
 use crate::constants::manifests::{
-    NPM_PACKAGE_JSON, CARGO_TOML, MAVEN_POM, 
-    PYTHON_PYPROJECT, PYTHON_SETUP, PYTHON_SETUP_CFG,
-    GO_MOD, PHP_COMPOSER, GRADLE_BUILD, GRADLE_BUILD_KTS, GRADLE_PROPERTIES
+    CARGO_TOML, GO_MOD, GRADLE_BUILD, GRADLE_BUILD_KTS, GRADLE_PROPERTIES, MAVEN_POM,
+    NPM_PACKAGE_JSON, PHP_COMPOSER, PYTHON_PYPROJECT, PYTHON_SETUP, PYTHON_SETUP_CFG,
 };
 
 /// Supported technology types
@@ -127,7 +126,7 @@ impl TechnologyDetector {
     /// Auto-detect technology from project directory
     pub fn detect(&self, project_path: &Path) -> Result<String> {
         let results = self.detect_all(project_path)?;
-        
+
         if results.is_empty() {
             return Err(anyhow!(
                 "No supported technology detected in {}. Supported: npm (package.json), cargo (Cargo.toml), maven (pom.xml), python (pyproject.toml), go (go.mod), composer (composer.json), gradle (build.gradle), generic (VERSION)",
@@ -136,7 +135,8 @@ impl TechnologyDetector {
         }
 
         // Return the highest priority detection
-        let best_result = results.into_iter()
+        let best_result = results
+            .into_iter()
             .max_by_key(|r| (r.confidence * 100.0) as u32)
             .unwrap();
 
@@ -180,7 +180,9 @@ impl TechnologyDetector {
 
     /// Check if a specific technology is present
     pub fn has_technology(&self, project_path: &Path, technology: &Technology) -> Result<bool> {
-        let pattern = self.patterns.iter()
+        let pattern = self
+            .patterns
+            .iter()
             .find(|p| &p.technology == technology)
             .ok_or_else(|| anyhow!("Unknown technology: {:?}", technology))?;
 
@@ -195,8 +197,14 @@ impl TechnologyDetector {
     }
 
     /// Get the primary file for a technology
-    pub fn get_primary_file(&self, project_path: &Path, technology: &Technology) -> Result<PathBuf> {
-        let pattern = self.patterns.iter()
+    pub fn get_primary_file(
+        &self,
+        project_path: &Path,
+        technology: &Technology,
+    ) -> Result<PathBuf> {
+        let pattern = self
+            .patterns
+            .iter()
             .find(|p| &p.technology == technology)
             .ok_or_else(|| anyhow!("Unknown technology: {:?}", technology))?;
 
@@ -207,19 +215,23 @@ impl TechnologyDetector {
             }
         }
 
-        Err(anyhow!("No {} files found in {}", technology, project_path.display()))
+        Err(anyhow!(
+            "No {} files found in {}",
+            technology,
+            project_path.display()
+        ))
     }
 
     /// Calculate confidence score for detection
     fn calculate_confidence(&self, pattern: &DetectionPattern, files_found: &[PathBuf]) -> f32 {
         let base_confidence = pattern.priority as f32 / 100.0;
-        
+
         // Bonus for multiple files found
         let file_bonus = (files_found.len() as f32 - 1.0) * 0.1;
-        
+
         // Bonus for specific file combinations
         let combination_bonus = self.calculate_combination_bonus(&pattern.technology, files_found);
-        
+
         (base_confidence + file_bonus + combination_bonus).min(1.0)
     }
 
@@ -228,7 +240,10 @@ impl TechnologyDetector {
         match technology {
             Technology::Python => {
                 // Prefer pyproject.toml over setup.py
-                if files_found.iter().any(|f| f.file_name().unwrap() == "pyproject.toml") {
+                if files_found
+                    .iter()
+                    .any(|f| f.file_name().unwrap() == "pyproject.toml")
+                {
                     0.1
                 } else {
                     0.0
@@ -237,8 +252,9 @@ impl TechnologyDetector {
             Technology::Npm => {
                 // Check for package-lock.json or yarn.lock for additional confidence
                 let project_path = files_found[0].parent().unwrap();
-                if project_path.join("package-lock.json").exists() || 
-                   project_path.join("yarn.lock").exists() {
+                if project_path.join("package-lock.json").exists()
+                    || project_path.join("yarn.lock").exists()
+                {
                     0.1
                 } else {
                     0.0
@@ -282,7 +298,9 @@ impl TechnologyDetector {
             }
             Technology::Python => {
                 // pyproject.toml should have version, setup.py might have it in different forms
-                if result.primary_file.file_name().unwrap() == "pyproject.toml" && !content.contains("version") {
+                if result.primary_file.file_name().unwrap() == "pyproject.toml"
+                    && !content.contains("version")
+                {
                     return Err(anyhow!("pyproject.toml does not contain version field"));
                 }
             }
@@ -328,8 +346,8 @@ impl Default for TechnologyDetector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use std::fs;
+    use tempfile::TempDir;
 
     fn create_test_file(dir: &Path, name: &str, content: &str) -> Result<()> {
         fs::write(dir.join(name), content)?;
@@ -355,9 +373,13 @@ mod tests {
         let temp_dir = TempDir::new()?;
         let project_path = temp_dir.path();
 
-        create_test_file(project_path, "Cargo.toml", r#"[package]
+        create_test_file(
+            project_path,
+            "Cargo.toml",
+            r#"[package]
 name = "test"
-version = "1.0.0""#)?;
+version = "1.0.0""#,
+        )?;
 
         let detector = TechnologyDetector::new();
         let technology = detector.detect(project_path)?;
@@ -371,9 +393,13 @@ version = "1.0.0""#)?;
         let temp_dir = TempDir::new()?;
         let project_path = temp_dir.path();
 
-        create_test_file(project_path, "pom.xml", r#"<project>
+        create_test_file(
+            project_path,
+            "pom.xml",
+            r#"<project>
 <version>1.0.0</version>
-</project>"#)?;
+</project>"#,
+        )?;
 
         let detector = TechnologyDetector::new();
         let technology = detector.detect(project_path)?;
@@ -387,8 +413,12 @@ version = "1.0.0""#)?;
         let temp_dir = TempDir::new()?;
         let project_path = temp_dir.path();
 
-        create_test_file(project_path, "pyproject.toml", r#"[project]
-version = "1.0.0""#)?;
+        create_test_file(
+            project_path,
+            "pyproject.toml",
+            r#"[project]
+version = "1.0.0""#,
+        )?;
 
         let detector = TechnologyDetector::new();
         let technology = detector.detect(project_path)?;
@@ -437,7 +467,10 @@ version = "1.0.0""#)?;
         let result = detector.detect(project_path);
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("No supported technology detected"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("No supported technology detected"));
     }
 
     #[test]
@@ -446,8 +479,11 @@ version = "1.0.0""#)?;
         assert_eq!("cargo".parse::<Technology>().unwrap(), Technology::Cargo);
         assert_eq!("maven".parse::<Technology>().unwrap(), Technology::Maven);
         assert_eq!("python".parse::<Technology>().unwrap(), Technology::Python);
-        assert_eq!("generic".parse::<Technology>().unwrap(), Technology::Generic);
-        
+        assert_eq!(
+            "generic".parse::<Technology>().unwrap(),
+            Technology::Generic
+        );
+
         assert!("invalid".parse::<Technology>().is_err());
     }
 
@@ -459,10 +495,10 @@ version = "1.0.0""#)?;
         create_test_file(project_path, "package.json", r#"{"version": "1.0.0"}"#)?;
 
         let detector = TechnologyDetector::new();
-        
+
         assert!(detector.has_technology(project_path, &Technology::Npm)?);
         assert!(!detector.has_technology(project_path, &Technology::Cargo)?);
-        
+
         Ok(())
     }
 }

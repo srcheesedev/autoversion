@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use std::path::{Path, PathBuf};
 
-use super::traits::{VersionUpdater, VersionChange};
+use super::traits::{VersionChange, VersionUpdater};
 use crate::constants::manifests::CARGO_TOML;
 use crate::utils::files::{backup_file, read_file_safe, write_file_safe};
 use toml::Value as TomlValue;
@@ -48,10 +48,15 @@ impl CargoUpdater {
 
         if let Some(table) = value.get_mut("package") {
             if let Some(pkg_table) = table.as_table_mut() {
-                pkg_table.insert("version".to_string(), TomlValue::String(new_version.to_string()));
+                pkg_table.insert(
+                    "version".to_string(),
+                    TomlValue::String(new_version.to_string()),
+                );
             }
         } else {
-            return Err(anyhow!("Cargo.toml does not contain [package] table with version"));
+            return Err(anyhow!(
+                "Cargo.toml does not contain [package] table with version"
+            ));
         }
 
         // Serialize back to TOML
@@ -120,7 +125,11 @@ impl VersionUpdater for CargoUpdater {
         project_path.join(CARGO_TOML).exists()
     }
 
-    fn preview_changes(&self, project_path: &Path, new_version: &str) -> Result<Vec<VersionChange>> {
+    fn preview_changes(
+        &self,
+        project_path: &Path,
+        new_version: &str,
+    ) -> Result<Vec<VersionChange>> {
         let cargo_toml = project_path.join(CARGO_TOML);
         let mut changes = Vec::new();
         if cargo_toml.exists() {
@@ -142,8 +151,8 @@ impl VersionUpdater for CargoUpdater {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use std::fs;
+    use tempfile::TempDir;
 
     // Helper used by multiple tests to create a minimal Cargo.toml in a temp dir.
     // TDD note: los tests crean un entorno aislado (TempDir) que simula un proyecto
@@ -219,7 +228,7 @@ mod tests {
         // TDD: Verify that only [package].version is updated, not dependency versions
         let tmp = TempDir::new()?;
         let path = tmp.path();
-        
+
         // Create a Cargo.toml with multiple version fields
         let content = r#"[package]
 name = "test-package"
@@ -240,27 +249,21 @@ path = "src/main.rs"
         fs::write(path.join(CARGO_TOML), content)?;
 
         let updater = CargoUpdater::new();
-        
+
         // Update version
         updater.update_version(path, "0.2.0")?;
-        
+
         // Read updated content
         let updated_content = fs::read_to_string(path.join(CARGO_TOML))?;
-        
+
         // Parse to verify structure
         let parsed: TomlValue = updated_content.parse()?;
-        
+
         // Assert package version changed
-        assert_eq!(
-            parsed["package"]["version"].as_str().unwrap(),
-            "0.2.0"
-        );
-        
+        assert_eq!(parsed["package"]["version"].as_str().unwrap(), "0.2.0");
+
         // Assert dependency versions unchanged
-        assert_eq!(
-            parsed["dependencies"]["anyhow"].as_str().unwrap(),
-            "1.0"
-        );
+        assert_eq!(parsed["dependencies"]["anyhow"].as_str().unwrap(), "1.0");
         assert_eq!(
             parsed["dependencies"]["serde"]["version"].as_str().unwrap(),
             "1.0"
@@ -269,7 +272,7 @@ path = "src/main.rs"
             parsed["dev-dependencies"]["tempfile"].as_str().unwrap(),
             "3.0"
         );
-        
+
         Ok(())
     }
 }

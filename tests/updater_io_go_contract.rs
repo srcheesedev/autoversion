@@ -1,5 +1,5 @@
 /// Contract test for Go updater I/O operations
-/// 
+///
 /// This test validates that the GoUpdater:
 /// 1. Creates backup files before modification
 /// 2. Actually updates the VERSION file content
@@ -19,7 +19,8 @@ fn go_updater_creates_backup_and_updates_version_file() {
     fs::write(
         project_path.join("go.mod"),
         "module github.com/user/project\n\ngo 1.21\n",
-    ).unwrap();
+    )
+    .unwrap();
 
     // Create VERSION file with initial version
     fs::write(project_path.join("VERSION"), "v1.0.0\n").unwrap();
@@ -68,7 +69,8 @@ fn go_updater_works_without_version_file() {
     fs::write(
         project_path.join("go.mod"),
         "module github.com/user/project\n\ngo 1.21\n",
-    ).unwrap();
+    )
+    .unwrap();
 
     let updater = GoUpdater::new();
 
@@ -76,7 +78,10 @@ fn go_updater_works_without_version_file() {
     let result = updater.update_version(project_path, "1.0.0");
 
     // Assert
-    assert!(result.is_ok(), "Update should succeed even without VERSION file");
+    assert!(
+        result.is_ok(),
+        "Update should succeed even without VERSION file"
+    );
     let updated_files = result.unwrap();
     assert_eq!(
         updated_files.len(),

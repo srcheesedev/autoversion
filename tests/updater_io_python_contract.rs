@@ -29,10 +29,15 @@ setup(name="contract-test", version="0.1.0")
     let updated = updater.update_version(path, "0.2.0")?;
 
     // Backups should exist for files that were updated
-    assert!(path.join("pyproject.toml.autoversion.backup").exists() || path.join("setup.py.autoversion.backup").exists());
+    assert!(
+        path.join("pyproject.toml.autoversion.backup").exists()
+            || path.join("setup.py.autoversion.backup").exists()
+    );
 
     // Ensure updated files list contains at least one of the two
-    assert!(updated.iter().any(|f| f.ends_with("pyproject.toml") || f.ends_with("setup.py")));
+    assert!(updated
+        .iter()
+        .any(|f| f.ends_with("pyproject.toml") || f.ends_with("setup.py")));
 
     // Verify at least one file contains the new version
     let py = fs::read_to_string(path.join("pyproject.toml"))?;

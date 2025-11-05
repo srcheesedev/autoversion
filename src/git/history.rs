@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use git2::{Repository, Oid};
+use git2::{Oid, Repository};
 use regex::Regex;
 use semver::Version;
 use std::path::Path;
@@ -25,9 +25,18 @@ impl CommitAnalyzer {
     }
 
     /// Analyze commits since the last version tag to determine bump type
-    pub fn analyze_commits_since_version(&self, repo_path: &Path, current_version: &Version) -> Result<BumpType> {
-        let repo = Repository::open(repo_path)
-            .map_err(|e| anyhow!("Failed to open git repository at {}: {}", repo_path.display(), e))?;
+    pub fn analyze_commits_since_version(
+        &self,
+        repo_path: &Path,
+        current_version: &Version,
+    ) -> Result<BumpType> {
+        let repo = Repository::open(repo_path).map_err(|e| {
+            anyhow!(
+                "Failed to open git repository at {}: {}",
+                repo_path.display(),
+                e
+            )
+        })?;
 
         // Try to find the tag for current version
         let version_tag = format!("{}{}", DEFAULT_TAG_PREFIX, current_version);
@@ -35,7 +44,7 @@ impl CommitAnalyzer {
 
         // Get commits since the tag (or all commits if no tag found)
         let commits = self.get_commits_since(&repo, tag_commit)?;
-        
+
         if commits.is_empty() {
             return Ok(BumpType::Patch); // Default to patch if no commits
         }
@@ -73,8 +82,10 @@ impl CommitAnalyzer {
     fn find_tag_commit(&self, repo: &Repository, tag_name: &str) -> Result<Option<Oid>> {
         match repo.find_reference(&format!("refs/tags/{}", tag_name)) {
             Ok(tag_ref) => {
-                let tag_oid = tag_ref.target().ok_or_else(|| anyhow!("Tag reference has no target"))?;
-                
+                let tag_oid = tag_ref
+                    .target()
+                    .ok_or_else(|| anyhow!("Tag reference has no target"))?;
+
                 // Handle both lightweight and annotated tags
                 if let Ok(tag_obj) = repo.find_tag(tag_oid) {
                     // Annotated tag - get the target commit
@@ -92,17 +103,21 @@ impl CommitAnalyzer {
     }
 
     /// Get commit messages since a specific commit (or all if None)
-    fn get_commits_since(&self, repo: &Repository, since_commit: Option<Oid>) -> Result<Vec<String>> {
+    fn get_commits_since(
+        &self,
+        repo: &Repository,
+        since_commit: Option<Oid>,
+    ) -> Result<Vec<String>> {
         let mut revwalk = repo.revwalk()?;
         revwalk.push_head()?;
-        
+
         let mut commits = Vec::new();
-        
+
         if let Some(since_oid) = since_commit {
             // Collect commits until we reach the since commit
             for oid in revwalk {
                 let oid = oid?;
-                
+
                 if oid == since_oid {
                     break; // Stop when we reach the since commit
                 }
@@ -142,7 +157,11 @@ impl CommitAnalyzer {
     }
 
     /// Get a summary of commit analysis for debugging
-    pub fn analyze_commits_detailed(&self, repo_path: &Path, current_version: &Version) -> Result<CommitAnalysis> {
+    pub fn analyze_commits_detailed(
+        &self,
+        repo_path: &Path,
+        current_version: &Version,
+    ) -> Result<CommitAnalysis> {
         let repo = Repository::open(repo_path)?;
         let version_tag = format!("{}{}", DEFAULT_TAG_PREFIX, current_version);
         let tag_commit = self.find_tag_commit(&repo, &version_tag)?;
@@ -214,17 +233,17 @@ mod tests {
         assert!(analyzer.is_breaking_change("feat!: breaking change"));
         assert!(analyzer.is_breaking_change("fix!: another breaking change"));
         assert!(analyzer.is_breaking_change("feat: something\n\nBREAKING CHANGE: details"));
-        
+
         // Features
         assert!(analyzer.is_feature("feat: add new functionality"));
         assert!(analyzer.is_feature("feat(scope): add scoped feature"));
         assert!(analyzer.is_feature("FEAT: uppercase variant"));
-        
+
         // Fixes
         assert!(analyzer.is_fix("fix: resolve bug"));
         assert!(analyzer.is_fix("fix(scope): scoped fix"));
         assert!(analyzer.is_fix("FIX: uppercase fix"));
-        
+
         // Non-matching
         assert!(!analyzer.is_feature("chore: update dependencies"));
         assert!(!analyzer.is_fix("docs: update readme"));
