@@ -332,6 +332,16 @@ mod tests {
 
     #[test]
     fn test_json_output() -> Result<()> {
+        use std::sync::{Mutex, OnceLock};
+        // Serialize tests that modify environment variables
+        static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        let _guard = ENV_LOCK
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+
+        let saved_format = env::var("AUTOVERSION_OUTPUT_FORMAT").ok();
+
         let mut output = ActionOutput::new();
         output.set_version("1.0.0");
         output.set_technology("npm");
@@ -344,12 +354,24 @@ mod tests {
         assert!(json.contains("1.0.0"));
         assert!(json.contains("npm"));
 
-        env::remove_var("AUTOVERSION_OUTPUT_FORMAT");
+        // Restore original environment
+        match saved_format {
+            Some(val) => env::set_var("AUTOVERSION_OUTPUT_FORMAT", val),
+            None => env::remove_var("AUTOVERSION_OUTPUT_FORMAT"),
+        }
         Ok(())
     }
 
     #[test]
     fn test_github_actions_output_with_file() -> Result<()> {
+        use std::sync::{Mutex, OnceLock};
+        // Serialize tests that modify environment variables
+        static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        let _guard = ENV_LOCK
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+
         // Save and restore environment to avoid interfering with CI
         let saved_output = env::var("GITHUB_OUTPUT").ok();
         let saved_format = env::var("AUTOVERSION_OUTPUT_FORMAT").ok();
@@ -387,6 +409,14 @@ mod tests {
 
     #[test]
     fn test_write_github_output_utility() -> Result<()> {
+        use std::sync::{Mutex, OnceLock};
+        // Serialize tests that modify environment variables
+        static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        let _guard = ENV_LOCK
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+
         // Save and restore environment to avoid interfering with CI
         let saved_output = env::var("GITHUB_OUTPUT").ok();
 
