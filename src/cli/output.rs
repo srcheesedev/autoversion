@@ -127,18 +127,23 @@ impl ActionOutput {
 
             // Write outputs using simple key=value format
             // Values must be on a single line
-            writeln!(file, "version={}", self.data.version)?;
-            writeln!(file, "previous-version={}", self.data.previous_version)?;
-            writeln!(file, "version-type={}", self.data.version_type)?;
-            writeln!(file, "technology={}", self.data.technology)?;
-            writeln!(file, "files-updated={}", self.data.files_updated.join(","))?;
-            writeln!(file, "tag-created={}", self.data.tag_created)?;
+            // Use write! + explicit \n to ensure consistent line endings
+            write!(file, "version={}\n", self.data.version)?;
+            write!(file, "previous-version={}\n", self.data.previous_version)?;
+            write!(file, "version-type={}\n", self.data.version_type)?;
+            write!(file, "technology={}\n", self.data.technology)?;
+            write!(
+                file,
+                "files-updated={}\n",
+                self.data.files_updated.join(",")
+            )?;
+            write!(file, "tag-created={}\n", self.data.tag_created)?;
 
             if let Some(tag_name) = &self.data.tag_name {
-                writeln!(file, "tag-name={}", tag_name)?;
+                write!(file, "tag-name={}\n", tag_name)?;
             }
 
-            writeln!(file, "success={}", self.data.success)?;
+            write!(file, "success={}\n", self.data.success)?;
 
             // Explicitly flush to ensure all data is written
             file.flush()?;
@@ -267,8 +272,8 @@ pub fn write_github_output(key: &str, value: &str) -> Result<()> {
             .create(true)
             .append(true)
             .open(&output_file)?;
-        // Use simple key=value format
-        writeln!(file, "{}={}", key, value)?;
+        // Use simple key=value format with explicit \n
+        write!(file, "{}={}\n", key, value)?;
         file.flush()?;
     } else {
         println!("::set-output name={}::{}", key, value);
@@ -350,10 +355,6 @@ mod tests {
 
     #[test]
     fn test_github_actions_output_with_file() -> Result<()> {
-        // Save original value to restore later (in case running in CI)
-        let original_output = env::var("GITHUB_OUTPUT").ok();
-        let original_format = env::var("AUTOVERSION_OUTPUT_FORMAT").ok();
-
         let temp_file = NamedTempFile::new()?;
         let temp_path = temp_file.path().to_str().unwrap();
 
@@ -373,23 +374,13 @@ mod tests {
         assert!(content.contains("tag-created=true"));
         assert!(content.contains("tag-name=v2.0.0"));
 
-        // Restore original values
-        match original_output {
-            Some(val) => env::set_var("GITHUB_OUTPUT", val),
-            None => env::remove_var("GITHUB_OUTPUT"),
-        }
-        match original_format {
-            Some(val) => env::set_var("AUTOVERSION_OUTPUT_FORMAT", val),
-            None => env::remove_var("AUTOVERSION_OUTPUT_FORMAT"),
-        }
+        env::remove_var("GITHUB_OUTPUT");
+        env::remove_var("AUTOVERSION_OUTPUT_FORMAT");
         Ok(())
     }
 
     #[test]
     fn test_write_github_output_utility() -> Result<()> {
-        // Save original value to restore later (in case running in CI)
-        let original_output = env::var("GITHUB_OUTPUT").ok();
-
         let temp_file = NamedTempFile::new()?;
         let temp_path = temp_file.path().to_str().unwrap();
 
@@ -400,11 +391,7 @@ mod tests {
         let content = fs::read_to_string(temp_path)?;
         assert!(content.contains("test-key=test-value"));
 
-        // Restore original value
-        match original_output {
-            Some(val) => env::set_var("GITHUB_OUTPUT", val),
-            None => env::remove_var("GITHUB_OUTPUT"),
-        }
+        env::remove_var("GITHUB_OUTPUT");
         Ok(())
     }
 
