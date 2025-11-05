@@ -304,7 +304,11 @@ pub fn create_annotation(
 mod tests {
     use super::*;
     use std::fs;
+    use std::sync::{Mutex, OnceLock};
     use tempfile::NamedTempFile;
+
+    // Shared mutex to serialize tests that modify environment variables
+    static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
     #[test]
     fn test_output_data_creation() {
@@ -332,9 +336,7 @@ mod tests {
 
     #[test]
     fn test_json_output() -> Result<()> {
-        use std::sync::{Mutex, OnceLock};
         // Serialize tests that modify environment variables
-        static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
         let _guard = ENV_LOCK
             .get_or_init(|| Mutex::new(()))
             .lock()
@@ -364,9 +366,7 @@ mod tests {
 
     #[test]
     fn test_github_actions_output_with_file() -> Result<()> {
-        use std::sync::{Mutex, OnceLock};
         // Serialize tests that modify environment variables
-        static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
         let _guard = ENV_LOCK
             .get_or_init(|| Mutex::new(()))
             .lock()
@@ -409,9 +409,7 @@ mod tests {
 
     #[test]
     fn test_write_github_output_utility() -> Result<()> {
-        use std::sync::{Mutex, OnceLock};
         // Serialize tests that modify environment variables
-        static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
         let _guard = ENV_LOCK
             .get_or_init(|| Mutex::new(()))
             .lock()
@@ -440,8 +438,7 @@ mod tests {
 
     #[test]
     fn test_default_format_detection() {
-        use std::sync::{Mutex, OnceLock};
-        static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        // Serialize tests that modify environment variables
         let _lock = ENV_LOCK
             .get_or_init(|| Mutex::new(()))
             .lock()
