@@ -125,41 +125,20 @@ impl ActionOutput {
                 .append(true)
                 .open(&output_file)?;
 
-            // Write outputs using GitHub Actions heredoc format for safety
-            // This prevents issues with special characters
-            writeln!(file, "version<<EOF")?;
-            writeln!(file, "{}", self.data.version)?;
-            writeln!(file, "EOF")?;
-
-            writeln!(file, "previous-version<<EOF")?;
-            writeln!(file, "{}", self.data.previous_version)?;
-            writeln!(file, "EOF")?;
-
-            writeln!(file, "version-type<<EOF")?;
-            writeln!(file, "{}", self.data.version_type)?;
-            writeln!(file, "EOF")?;
-
-            writeln!(file, "technology<<EOF")?;
-            writeln!(file, "{}", self.data.technology)?;
-            writeln!(file, "EOF")?;
-
-            writeln!(file, "files-updated<<EOF")?;
-            writeln!(file, "{}", self.data.files_updated.join(","))?;
-            writeln!(file, "EOF")?;
-
-            writeln!(file, "tag-created<<EOF")?;
-            writeln!(file, "{}", self.data.tag_created)?;
-            writeln!(file, "EOF")?;
+            // Write outputs using simple key=value format
+            // Values must be on a single line
+            writeln!(file, "version={}", self.data.version)?;
+            writeln!(file, "previous-version={}", self.data.previous_version)?;
+            writeln!(file, "version-type={}", self.data.version_type)?;
+            writeln!(file, "technology={}", self.data.technology)?;
+            writeln!(file, "files-updated={}", self.data.files_updated.join(","))?;
+            writeln!(file, "tag-created={}", self.data.tag_created)?;
 
             if let Some(tag_name) = &self.data.tag_name {
-                writeln!(file, "tag-name<<EOF")?;
-                writeln!(file, "{}", tag_name)?;
-                writeln!(file, "EOF")?;
+                writeln!(file, "tag-name={}", tag_name)?;
             }
 
-            writeln!(file, "success<<EOF")?;
-            writeln!(file, "{}", self.data.success)?;
-            writeln!(file, "EOF")?;
+            writeln!(file, "success={}", self.data.success)?;
         } else {
             // Fallback to old format if GITHUB_OUTPUT is not available
             println!("::set-output name=version::{}", self.data.version);
@@ -285,10 +264,8 @@ pub fn write_github_output(key: &str, value: &str) -> Result<()> {
             .create(true)
             .append(true)
             .open(&output_file)?;
-        // Use heredoc format for safety
-        writeln!(file, "{}<<EOF", key)?;
-        writeln!(file, "{}", value)?;
-        writeln!(file, "EOF")?;
+        // Use simple key=value format
+        writeln!(file, "{}={}", key, value)?;
     } else {
         println!("::set-output name={}::{}", key, value);
     }
@@ -383,14 +360,10 @@ mod tests {
         output.write_github_actions_output()?;
 
         let content = fs::read_to_string(temp_path)?;
-        assert!(content.contains("version<<EOF"));
-        assert!(content.contains("2.0.0"));
-        assert!(content.contains("technology<<EOF"));
-        assert!(content.contains("cargo"));
-        assert!(content.contains("tag-created<<EOF"));
-        assert!(content.contains("true"));
-        assert!(content.contains("tag-name<<EOF"));
-        assert!(content.contains("v2.0.0"));
+        assert!(content.contains("version=2.0.0"));
+        assert!(content.contains("technology=cargo"));
+        assert!(content.contains("tag-created=true"));
+        assert!(content.contains("tag-name=v2.0.0"));
 
         env::remove_var("GITHUB_OUTPUT");
         env::remove_var("AUTOVERSION_OUTPUT_FORMAT");
@@ -407,9 +380,7 @@ mod tests {
         write_github_output("test-key", "test-value")?;
 
         let content = fs::read_to_string(temp_path)?;
-        assert!(content.contains("test-key<<EOF"));
-        assert!(content.contains("test-value"));
-        assert!(content.contains("EOF"));
+        assert!(content.contains("test-key=test-value"));
 
         env::remove_var("GITHUB_OUTPUT");
         Ok(())
