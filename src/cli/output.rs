@@ -131,11 +131,11 @@ impl ActionOutput {
             writeln!(file, "previous-version={}", self.data.previous_version)?;
             writeln!(file, "version-type={}", self.data.version_type)?;
             writeln!(file, "technology={}", self.data.technology)?;
-            
+
             // For files-updated, use JSON array to avoid delimiter issues
             let files_json = serde_json::to_string(&self.data.files_updated)?;
             writeln!(file, "files-updated={}", files_json)?;
-            
+
             writeln!(file, "tag-created={}", self.data.tag_created)?;
 
             if let Some(tag_name) = &self.data.tag_name {
