@@ -350,6 +350,10 @@ mod tests {
 
     #[test]
     fn test_github_actions_output_with_file() -> Result<()> {
+        // Save original value to restore later (in case running in CI)
+        let original_output = env::var("GITHUB_OUTPUT").ok();
+        let original_format = env::var("AUTOVERSION_OUTPUT_FORMAT").ok();
+
         let temp_file = NamedTempFile::new()?;
         let temp_path = temp_file.path().to_str().unwrap();
 
@@ -369,13 +373,23 @@ mod tests {
         assert!(content.contains("tag-created=true"));
         assert!(content.contains("tag-name=v2.0.0"));
 
-        env::remove_var("GITHUB_OUTPUT");
-        env::remove_var("AUTOVERSION_OUTPUT_FORMAT");
+        // Restore original values
+        match original_output {
+            Some(val) => env::set_var("GITHUB_OUTPUT", val),
+            None => env::remove_var("GITHUB_OUTPUT"),
+        }
+        match original_format {
+            Some(val) => env::set_var("AUTOVERSION_OUTPUT_FORMAT", val),
+            None => env::remove_var("AUTOVERSION_OUTPUT_FORMAT"),
+        }
         Ok(())
     }
 
     #[test]
     fn test_write_github_output_utility() -> Result<()> {
+        // Save original value to restore later (in case running in CI)
+        let original_output = env::var("GITHUB_OUTPUT").ok();
+
         let temp_file = NamedTempFile::new()?;
         let temp_path = temp_file.path().to_str().unwrap();
 
@@ -386,7 +400,11 @@ mod tests {
         let content = fs::read_to_string(temp_path)?;
         assert!(content.contains("test-key=test-value"));
 
-        env::remove_var("GITHUB_OUTPUT");
+        // Restore original value
+        match original_output {
+            Some(val) => env::set_var("GITHUB_OUTPUT", val),
+            None => env::remove_var("GITHUB_OUTPUT"),
+        }
         Ok(())
     }
 
