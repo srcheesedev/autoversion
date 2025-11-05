@@ -139,6 +139,9 @@ impl ActionOutput {
             }
 
             writeln!(file, "success={}", self.data.success)?;
+
+            // Explicitly flush to ensure all data is written
+            file.flush()?;
         } else {
             // Fallback to old format if GITHUB_OUTPUT is not available
             println!("::set-output name=version::{}", self.data.version);
@@ -266,6 +269,7 @@ pub fn write_github_output(key: &str, value: &str) -> Result<()> {
             .open(&output_file)?;
         // Use simple key=value format
         writeln!(file, "{}={}", key, value)?;
+        file.flush()?;
     } else {
         println!("::set-output name={}::{}", key, value);
     }
