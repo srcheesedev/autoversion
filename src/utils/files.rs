@@ -88,7 +88,8 @@ pub fn is_writable(file_path: &Path) -> bool {
 pub fn normalize_line_endings(content: &str) -> String {
     #[cfg(windows)]
     {
-        content.replace('\n', "\r\n")
+        // First normalize to Unix, then convert to Windows to avoid double \r
+        content.replace("\r\n", "\n").replace('\n', "\r\n")
     }
     #[cfg(not(windows))]
     {

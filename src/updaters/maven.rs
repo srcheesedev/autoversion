@@ -372,8 +372,9 @@ mod tests {
         // Update version
         updater.update_version(path, "2.0.0")?;
 
-        // Read updated content
-        let updated_content = fs::read_to_string(path.join(MAVEN_POM))?;
+        // Read updated content and normalize line endings for cross-platform compatibility
+        let updated_content = fs::read_to_string(path.join(MAVEN_POM))?
+            .replace("\r\n", "\n");
 
         // Assert project version changed
         assert!(updated_content
